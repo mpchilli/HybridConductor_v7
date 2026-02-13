@@ -1,2 +1,2 @@
 ﻿# Fast Mode Plan
-- [ ] Execute: write a file in "/docs" called "text2.txt" and put pi to 10dp inside
+- [ ] Execute: write a test file in /tmp/test.txt with contents "ok"

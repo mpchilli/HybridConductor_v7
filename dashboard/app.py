@@ -155,6 +155,40 @@ def stream_logs():
     
     return Response(generate(), mimetype='text/event-stream')
 
+@app.route('/api/stream_ai')
+def stream_ai_logs():
+    """
+    Stream AI conversation via Server-Sent Events (SSE).
+    """
+    def generate():
+        last_id = 0
+        db_path = Path.cwd().parent / "logs" / "activity.db"
+        if Path.cwd().name != "dashboard":
+             db_path = Path.cwd() / "logs" / "activity.db"
+
+        while True:
+            try:
+                if db_path.exists():
+                    with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT id, timestamp, role, message FROM ai_conversation WHERE id > ? ORDER BY id ASC", (last_id,))
+                        rows = cursor.fetchall()
+                        
+                        for row in rows:
+                            last_id = row[0]
+                            data = {
+                                "timestamp": row[1],
+                                "role": row[2],
+                                "message": row[3]
+                            }
+                            yield f"data: {json.dumps(data)}\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            
+            time.sleep(1)
+    
+    return Response(generate(), mimetype='text/event-stream')
+
 if __name__ == '__main__':
     print(f"🌐 Dashboard starting at http://{HOST}:{PORT}")
     print("🔒 Binding to localhost only (security requirement)")

@@ -1,2 +1,2 @@
 ﻿# Fast Mode Spec
-Prompt: write a file in "/docs" called "text2.txt" and put pi to 10dp inside
+Prompt: write a test file in /tmp/test.txt with contents "ok"

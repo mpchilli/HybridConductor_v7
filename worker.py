@@ -72,7 +72,8 @@ def execute_task(
     plan: str,
     context: str,
     complexity_mode: str,
-    max_iterations: int = 25
+    max_iterations: int = 25,
+    tmp_dir: Path = Path("C:/tmp")
 ) -> bool:
     """
     Execute a single task with BIST verification.
@@ -94,6 +95,10 @@ def execute_task(
         for attempt in range(max_iterations):
             temperature = _get_temperature_for_attempt(attempt)
             
+            # Log prompt
+            prompt = f"Executing plan: {plan}\nContext: {context}\nTemperature: {temperature}"
+            _log_ai_conversation("SYSTEM", prompt)
+            
             # Generate code using LLM
             code = _generate_code(
                 plan=plan,
@@ -101,18 +106,22 @@ def execute_task(
                 temperature=temperature
             )
             
-            # Save generated code
-            code_path = Path.cwd() / f"task_{task_id}.py"
+            # Log response
+            _log_ai_conversation("AI", code)
+            
+            # Save generated code to tmp_dir
+            code_path = tmp_dir / f"task_{task_id}.py"
             with open(code_path, "w", encoding="utf-8-sig") as f:
                 f.write(code)
             
             # Run BIST (Built-In Self-Test)
             if _run_bist(code_path):
-                print("✅ BIST passed")
+                print(f"✅ BIST passed. Code saved to {code_path}")
                 mcp_client.commit(f"Auto-commit task {task_id}")
                 return True
             else:
                 print(f"❌ BIST failed on attempt {attempt + 1}")
+                _log_ai_conversation("SYSTEM", f"BIST failed for {code_path}. Retrying...")
                 
                 # Check for loop detection
                 if _detect_loop(code, attempt):
@@ -128,6 +137,19 @@ def execute_task(
         # Cleanup MCP server
         mcp_process.terminate()
         mcp_process.wait()
+
+def _log_ai_conversation(role: str, message: str) -> None:
+    """Log to the shared activity database."""
+    import sqlite3
+    db_path = Path("logs/activity.db")
+    try:
+        with sqlite3.connect(f"file:{db_path}?mode=rw", uri=True) as conn:
+            conn.execute("""
+                INSERT INTO ai_conversation (role, message)
+                VALUES (?, ?)
+            """, (role, message))
+    except Exception as e:
+        print(f"⚠️ Worker failed to log conversation: {e}")
 
 def _launch_mcp_git_server() -> subprocess.Popen:
     """Launch MCP Git server as background process."""
@@ -151,11 +173,16 @@ def _get_temperature_for_attempt(attempt: int) -> float:
 
 def _generate_code(plan: str, context: str, temperature: float) -> str:
     """Generate code using LLM with given parameters."""
-    # Placeholder implementation
+    # Prefix each line with # to ensure it's a valid comment
+    commented_plan = "\n".join(f"# {line}" for line in plan.splitlines())
+    commented_context = "\n".join(f"# {line}" for line in context.splitlines())
+    
     return f"""
 # Generated with temperature {temperature}
-# Plan: {plan[:50]}...
-# Context: {context[:50]}...
+# Plan:
+{commented_plan}
+# Context:
+{commented_context}
 
 def main():
     print("Task completed successfully!")

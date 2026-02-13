@@ -197,15 +197,18 @@ class Orchestrator:
         with open(self.state_dir / "plan.md", "r", encoding="utf-8-sig") as f:
             plan = f.read()
         
-        # Fetch context for current task
+        # Log context fetching
+        self._log_ai_conversation("SYSTEM", f"Fetching context for: {plan[:100]}...")
         context = fetch_context("next task from plan")
+        self._log_ai_conversation("AI", f"Context retrieved: {context[:100]}...")
         
         # Execute task with current context and plan
         success = execute_task(
             plan=plan,
             context=context,
             complexity_mode=self.complexity_mode.value,
-            max_iterations=self.config.get("max_iterations", 25)
+            max_iterations=self.config.get("max_iterations", 25),
+            tmp_dir=self.tmp_dir
         )
         
         if success:
