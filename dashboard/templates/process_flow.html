@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hybrid Conductor - Process Flow</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-color: #e0e0e0;
+            --accent-color: #007bff;
+            --success-color: #4caf50;
+            --warning-color: #ff9800;
+            --danger-color: #f44336;
+            --border-radius: 8px;
+            --transition: all 0.3s ease;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        nav {
+            padding: 15px 20px;
+            background-color: var(--card-bg);
+            border-bottom: 1px solid #333;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        nav a {
+            color: var(--text-color);
+            text-decoration: none;
+            opacity: 0.7;
+            transition: var(--transition);
+        }
+
+        nav a:hover,
+        nav a.active {
+            opacity: 1;
+            color: var(--accent-color);
+        }
+
+        main {
+            flex-grow: 1;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            margin-bottom: 40px;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        .flow-container {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            max-width: 1200px;
+            position: relative;
+        }
+
+        .stage-card {
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            width: 220px;
+            height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            cursor: pointer;
+            border: 2px solid transparent;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            transition: var(--transition);
+            position: relative;
+            z-index: 10;
+        }
+
+        .stage-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-color);
+            box-shadow: 0 8px 12px rgba(0, 123, 255, 0.2);
+        }
+
+        .stage-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 1.2rem;
+        }
+
+        .stage-card p {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin: 0;
+        }
+
+        .stage-icon {
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+
+        /* Arrows */
+        .arrow {
+            font-size: 2rem;
+            color: #555;
+            transition: var(--transition);
+        }
+
+        .flow-container:hover .arrow {
+            color: #777;
+        }
+
+        /* Detail View */
+        #detail-view {
+            margin-top: 50px;
+            background-color: var(--card-bg);
+            padding: 30px;
+            border-radius: var(--border-radius);
+            max-width: 800px;
+            width: 100%;
+            display: none;
+            animation: fadeIn 0.5s ease;
+            border-left: 4px solid var(--accent-color);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .detail-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .detail-content h4 {
+            margin-top: 0;
+            color: var(--accent-color);
+        }
+
+        /* Responsive */
+        @media (max-width: 800px) {
+            .flow-container {
+                flex-direction: column;
+            }
+
+            .arrow {
+                transform: rotate(90deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <nav>
+        <strong>Hybrid Conductor</strong>
+        <a href="/monitor">Dashboard</a>
+        <a href="/process" class="active">Process Flow</a>
+        <a href="/history">History</a>
+    </nav>
+
+    <main>
+        <h1>Orchestration Lifecycle</h1>
+
+        <div class="flow-container">
+            <!-- Planning -->
+            <div class="stage-card" onclick="showDetail('planning')">
+                <div class="stage-icon">📝</div>
+                <h3>Planning</h3>
+                <p>Analyzes prompt & creates spec/plan</p>
+            </div>
+
+            <div class="arrow">→</div>
+
+            <!-- Building -->
+            <div class="stage-card" onclick="showDetail('building')">
+                <div class="stage-icon">🔨</div>
+                <h3>Building</h3>
+                <p>Executes code in isolated branches</p>
+            </div>
+
+            <div class="arrow">→</div>
+
+            <!-- Verifying -->
+            <div class="stage-card" onclick="showDetail('verifying')">
+                <div class="stage-icon">✅</div>
+                <h3>Verifying</h3>
+                <p>Runs BIST & validations</p>
+            </div>
+        </div>
+
+        <div id="detail-view">
+            <div class="detail-header">
+                <div class="stage-icon" id="detail-icon"></div>
+                <h2 id="detail-title"></h2>
+            </div>
+            <div class="detail-content" id="detail-desc"></div>
+        </div>
+    </main>
+
+    <script>
+        const details = {
+            planning: {
+                title: "Planning Phase",
+                icon: "📝",
+                content: `
+                    <h4>Goal: Understand & Blueprint</h4>
+                    <p>The orchestrator analyzes the user prompt to determine scope. It generates two key artifacts:</p>
+                    <ul>
+                        <li><strong>spec.md</strong>: Technical requirements and constraints.</li>
+                        <li><strong>plan.md</strong>: A checklist of actionable, atomic steps.</li>
+                    </ul>
+                    <p>In <em>Streamlined</em> mode, it immediately proceeds. In <em>Full</em> mode, it waits for user approval.</p>
+                `
+            },
+            building: {
+                title: "Building Phase",
+                icon: "🔨",
+                content: `
+                    <h4>Goal: Execute & Implement</h4>
+                    <p>The worker picks up tasks from <code>plan.md</code> and executes them:</p>
+                    <ul>
+                        <li>creates an isolated Git branch (e.g., <code>task-a1b2</code>).</li>
+                        <li>Generates code using LLM logic.</li>
+                        <li>Commits changes safely using MCP.</li>
+                    </ul>
+                    <p>If a loop is detected, the temperature is increased to encourage creative problem solving.</p>
+                `
+            },
+            verifying: {
+                title: "Verifying Phase",
+                icon: "✅",
+                content: `
+                    <h4>Goal: Quality Assurance</h4>
+                    <p>Before merging, the system runs Built-In Self-Tests (BIST):</p>
+                    <ul>
+                        <li>Syntax checks (Linting).</li>
+                        <li>Unit tests generated alongside the code.</li>
+                        <li>Runtime verification.</li>
+                    </ul>
+                    <p>If verification fails, the task moves to <strong>Debugging</strong> state automatically.</p>
+                `
+            }
+        };
+
+        function showDetail(stage) {
+            const data = details[stage];
+            document.getElementById('detail-title').innerText = data.title;
+            document.getElementById('detail-icon').innerText = data.icon;
+            document.getElementById('detail-desc').innerHTML = data.content;
+
+            const detailView = document.getElementById('detail-view');
+            detailView.style.display = 'block';
+
+            // Re-trigger animation
+            detailView.style.animation = 'none';
+            detailView.offsetHeight; /* trigger reflow */
+            detailView.style.animation = 'fadeIn 0.5s ease';
+        }
+    </script>
+</body>
+
+</html>

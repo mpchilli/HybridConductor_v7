@@ -23,6 +23,8 @@ WINDOWS-SPECIFIC CONSIDERATIONS:
 import os
 import time
 import json
+import sqlite3
+from datetime import datetime
 from pathlib import Path
 from enum import Enum
 from typing import Optional
@@ -74,6 +76,18 @@ class Orchestrator:
             return {"max_iterations": 25, "max_time_minutes": 60, "base_temperature": 0.7}
         with open(config_path, "r") as f:
             return yaml.safe_load(f)
+
+    def _log_event(self, status: str, details: str, iteration: int = 0) -> None:
+        """Log event to SQLite activity database."""
+        db_path = self.logs_dir / "activity.db"
+        try:
+            with sqlite3.connect(f"file:{db_path}?mode=rw", uri=True) as conn:
+                conn.execute("""
+                    INSERT INTO activity (task_id, iteration, status, details)
+                    VALUES (?, ?, ?, ?)
+                """, ("orchestrator", iteration, status, details))
+        except Exception as e:
+            print(f"⚠️ Failed to log event: {e}")
     
     def set_complexity_mode(self, mode: str) -> None:
         """Set complexity mode from user input.
@@ -94,6 +108,7 @@ class Orchestrator:
     def run(self, prompt: str) -> None:
         """Main execution loop implementing state machine."""
         print(f"🚀 Starting orchestration in {self.complexity_mode.value} mode")
+        self._log_event('STARTED', f"Starting orchestration in {self.complexity_mode.value} mode")
         
         # Generate L0 codebase map if needed
         if not (self.state_dir / "codebase_map.md").exists():
@@ -101,6 +116,7 @@ class Orchestrator:
         
         # Main state machine loop
         while self.current_state not in [State.COMPLETE, State.FAILED]:
+            self._log_event('RUNNING', f"Entering state: {self.current_state.value}", self.loop_guardian.iteration_count)
             if self.current_state == State.PLANNING:
                 self._handle_planning(prompt)
             elif self.current_state == State.BUILDING:
@@ -121,6 +137,8 @@ class Orchestrator:
             time.sleep(2)  # Prevent excessive CPU usage
         
         print(f"🏁 Orchestration completed with state: {self.current_state.value}")
+        status = 'COMPLETED' if self.current_state == State.COMPLETE else 'FAILED'
+        self._log_event(status, f"Orchestration completed with state: {self.current_state.value}")
     
     def _handle_planning(self, prompt: str) -> None:
         """Handle planning state based on complexity mode."""
@@ -148,6 +166,7 @@ class Orchestrator:
         
         # Wait for user approval (simulated in this example)
         print("📝 Plan generated. Waiting for user approval...")
+        self._log_event('RUNNING', "Plan generated. Waiting for user approval...", self.loop_guardian.iteration_count)
         time.sleep(5)  # In real implementation, this would wait for UI approval
         
         self.current_state = State.BUILDING
@@ -227,15 +246,41 @@ class Orchestrator:
         return f"# Spec for: {prompt}\n\n1. Requirement A\n2. Requirement B"
 
     def _generate_plan(self, prompt: str) -> str:
-        """Placeholder for plan generation."""
-        return f"# Plan for: {prompt}\n\n- [ ] Task 1\n- [ ] Task 2"
+        """Generate a basic plan based on the prompt."""
+        # Simple heuristic to generate a somewhat relevant plan
+        tasks = []
+        if "html" in prompt.lower():
+            tasks.append("- [ ] Create HTML structure")
+            tasks.append("- [ ] Add content to HTML file")
+        if "python" in prompt.lower():
+            tasks.append("- [ ] Create Python script")
+            tasks.append("- [ ] Implement main logic")
+        
+        if not tasks:
+            tasks.append(f"- [ ] Analyze requirements for: {prompt}")
+            tasks.append("- [ ] Implement solution")
+            tasks.append("- [ ] Verify implementation")
+            
+        return f"# Plan for: {prompt}\n\n" + "\n".join(tasks)
 
 # Main execution
 if __name__ == "__main__":
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Hybrid Orchestrator")
+    parser.add_argument("--prompt", type=str, help="Task prompt", required=False)
+    parser.add_argument("--complexity", type=str, default="streamlined", help="Complexity mode")
+    
+    args = parser.parse_args()
+    
     project_root = Path.cwd()
     orchestrator = Orchestrator(project_root)
     
-    # In real implementation, prompt would come from UI
-    prompt = "Change the toolbar color to blue"
-    orchestrator.set_complexity_mode("fast")  # User selection
-    orchestrator.run(prompt)
+    if args.prompt:
+        orchestrator.set_complexity_mode(args.complexity)
+        orchestrator.run(args.prompt)
+    else:
+        # Fallback for manual run / testing
+        prompt = "Change the toolbar color to blue"
+        orchestrator.set_complexity_mode("fast")
+        orchestrator.run(prompt)

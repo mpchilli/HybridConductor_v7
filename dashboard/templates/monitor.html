@@ -1,33 +1,132 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Orchestrator Monitor</title>
 </head>
-<body>
-    <h1>Execution Monitor</h1>
-    
-    <div id="logs" style="border: 1px solid #ccc; height: 300px; overflow-y: scroll; padding: 10px;">
-        <!-- Logs will appear here -->
-    </div>
 
-    <div>
-        <input type="text" id="commandInput" placeholder="Enter command (/pause, etc.)">
-        <button onclick="sendCommand()">Send Command</button>
+<body>
+    <nav style="padding: 10px; background: #f0f0f0; margin-bottom: 20px;">
+        <strong>Hybrid Conductor</strong> |
+        <a href="/monitor">Dashboard</a> |
+        <a href="/process">Process Flow</a> |
+        <a href="/history">History</a>
+    </nav>
+
+    <div style="padding: 20px;">
+        <div style="margin-bottom: 30px; border-bottom: 1px solid #ccc; padding-bottom: 20px;">
+            <h2>🚀 Start New Task</h2>
+            <form id="configForm" style="display: flex; gap: 10px; align-items: flex-start;">
+                <div style="flex-grow: 1;">
+                    <label for="prompt" style="display: block; margin-bottom: 5px;"><strong>Task
+                            Prompt:</strong></label>
+                    <textarea id="prompt" name="prompt" rows="3" style="width: 100%; padding: 8px;"
+                        placeholder="Describe what you want to build..."></textarea>
+                </div>
+
+                <div style="min-width: 200px;">
+                    <label for="complexity" style="display: block; margin-bottom: 5px;"><strong>Complexity
+                            Mode:</strong></label>
+                    <select id="complexity" name="complexity" style="width: 100%; padding: 8px; height: 40px;">
+                        <option value="fast">⚡ FAST (Skip Plan)</option>
+                        <option value="streamlined" selected>🌊 STREAMLINED (Standard)</option>
+                        <option value="full">🛡️ FULL (Verification Gates)</option>
+                    </select>
+                    <button type="submit"
+                        style="width: 100%; margin-top: 10px; padding: 10px; background: #007bff; color: white; border: none; cursor: pointer;">Start
+                        Task</button>
+                    <div id="status" style="margin-top: 10px; font-size: 0.9em; color: #666;"></div>
+                </div>
+            </form>
+        </div>
+
+        <h2>📺 Execution Monitor</h2>
+        <div id="logs"
+            style="border: 1px solid #ccc; height: 500px; overflow-y: scroll; padding: 10px; background: #1e1e1e; color: #d4d4d4; font-family: monospace;">
+            <!-- Logs will appear here -->
+            <div style="color: #666; font-style: italic;">Waiting for logs...</div>
+        </div>
+
+        <div style="margin-top: 10px;">
+            <input type="text" id="commandInput" placeholder="Enter command (/pause, /stop, etc.)"
+                style="width: 70%; padding: 8px;">
+            <button onclick="sendCommand()" style="padding: 8px 15px;">Send Command</button>
+        </div>
     </div>
 
     <script>
+        // Form Handling
+        document.getElementById('configForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const prompt = document.getElementById('prompt').value;
+            const complexity = document.getElementById('complexity').value;
+            const statusDiv = document.getElementById('status');
+
+            if (!prompt.trim()) {
+                statusDiv.innerText = "❌ Prompt required";
+                statusDiv.style.color = "red";
+                return;
+            }
+
+            statusDiv.innerText = "⏳ Starting...";
+            statusDiv.style.color = "blue";
+
+            try {
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, complexity })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    statusDiv.innerText = "✅ " + result.message;
+                    statusDiv.style.color = "green";
+                    document.getElementById('logs').innerHTML = ''; // Clear old logs
+                } else {
+                    statusDiv.innerText = "❌ " + (result.error || "Failed");
+                    statusDiv.style.color = "red";
+                }
+            } catch (err) {
+                statusDiv.innerText = "❌ Network Error";
+                statusDiv.style.color = "red";
+            }
+        });
+
+        // Log Streaming
         const eventSource = new EventSource('/api/stream');
-        eventSource.onmessage = function(event) {
+        eventSource.onmessage = function (event) {
             const logs = document.getElementById('logs');
             const data = JSON.parse(event.data);
-            logs.innerHTML += `<div>[${data.timestamp}] ${data.message}</div>`;
+
+            // Clear "Waiting for logs..." message on first log
+            if (logs.innerText.includes("Waiting for logs...")) {
+                logs.innerHTML = '';
+            }
+
+            // Simple color coding based on status
+            let color = '#d4d4d4'; // Default
+            if (data.status === 'STARTED') color = '#4caf50';
+            if (data.status === 'FAILED') color = '#f44336';
+            if (data.status === 'WARNING') color = '#ff9800';
+
+            const time = new Date(data.timestamp).toLocaleTimeString();
+
+            logs.innerHTML += `<div style="border-bottom: 1px solid #333; padding: 2px 0;">
+                <span style="color: #888;">[${time}]</span> 
+                <span style="color: ${color}; font-weight: bold;">[${data.status}]</span> 
+                ${data.message}
+            </div>`;
             logs.scrollTop = logs.scrollHeight;
         };
 
+        // Command Handling
         async function sendCommand() {
             const command = document.getElementById('commandInput').value;
+            if (!command) return;
+
             await fetch('/api/command', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -37,4 +136,5 @@
         }
     </script>
 </body>
+
 </html>

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,19 +8,27 @@
     <!-- Placeholder CSS -->
     <link rel="stylesheet" href="/static/css/main.css">
 </head>
+</head>
+
 <body>
+    <nav style="padding: 10px; background: #f0f0f0; margin-bottom: 20px;">
+        <a href="/config">Configuration</a> |
+        <a href="/monitor">Monitor</a> |
+        <a href="/process">Process Flow</a> |
+        <a href="/history">History</a>
+    </nav>
     <h1>Orchestrator Configuration</h1>
     <form id="configForm">
         <label for="prompt">Prompt:</label><br>
         <textarea id="prompt" name="prompt" rows="4" cols="50"></textarea><br>
-        
+
         <label for="complexity">Complexity Mode:</label>
         <select id="complexity" name="complexity">
             <option value="fast">FAST (Skip Plan)</option>
             <option value="streamlined" selected>STREAMLINED (Standard)</option>
             <option value="full">FULL (Verification Gates)</option>
         </select><br><br>
-        
+
         <button type="submit">Start Orchestration</button>
     </form>
 
@@ -30,16 +39,17 @@
             e.preventDefault();
             const prompt = document.getElementById('prompt').value;
             const complexity = document.getElementById('complexity').value;
-            
+
             const response = await fetch('/api/config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ prompt, complexity })
             });
-            
+
             const result = await response.json();
             document.getElementById('status').innerText = result.message;
         });
     </script>
 </body>
+
 </html>

@@ -1,31 +1,9 @@
-#!/usr/bin/env python3
-"""
-dashboard/app.py - Flask UI Server
-
-WHY THIS SCRIPT EXISTS:
-- Provides web-based interface for interactive configuration
-- Enables real-time monitoring of autonomous execution
-- Implements command injection queue for mid-flight steering
-- Binds strictly to localhost for security
-
-KEY ARCHITECTURAL DECISIONS:
-- LOCALHOST ONLY: Binds to 127.0.0.1 for security (NFR-704)
-- TIME-TO-ACKNOWLEDGE: <300ms response for user inputs (FR-706)
-- VISUAL FEEDBACK: Spinner within 1000ms for long-running tasks
-- COMMAND QUEUE: Writes to inbox.md for orchestrator processing
-
-WINDOWS-SPECIFIC CONSIDERATIONS:
-- Flask binds to 127.0.0.1:5000 (localhost only)
-- All file operations use UTF-8+BOM encoding
-- SSE for real-time log streaming with proper encoding
-- No external dependencies beyond Flask
-"""
-
 import os
 import time
+import sqlite3
+import json
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, Response
-import json
 
 # Create Flask app
 app = Flask(__name__, 
@@ -38,8 +16,8 @@ PORT = 5000
 
 @app.route('/')
 def index():
-    """Redirect to configuration page."""
-    return render_template('config.html')
+    """Redirect to monitoring page."""
+    return render_template('monitor.html')
 
 @app.route('/config')
 def config():
@@ -55,6 +33,11 @@ def monitor():
 def history():
     """Render history page."""
     return render_template('history.html')
+
+@app.route('/process')
+def process_flow():
+    """Render process flow visualization."""
+    return render_template('process_flow.html')
 
 @app.route('/api/config', methods=['POST'])
 def save_config():
@@ -78,15 +61,38 @@ def save_config():
     with open(state_dir / "spec.md", "w", encoding="utf-8-sig") as f:
         f.write(data['prompt'])
     
-    # Start orchestration asynchronously (in real implementation)
+    # Start orchestration asynchronously
     complexity = data.get('complexity', 'streamlined')
+    prompt = data['prompt']
+    
     print(f"🚀 Starting orchestration with complexity: {complexity}")
     
-    return jsonify({
-        'status': 'acknowledged',
-        'message': 'Orchestration started',
-        'complexity': complexity
-    })
+    # Spawn orchestrator process
+    try:
+        # Use python from current environment
+        import sys
+        import subprocess
+        
+        cmd = [sys.executable, "orchestrator.py", "--prompt", prompt, "--complexity", complexity]
+        
+        # Run in separate process, detached if possible or just Popen
+        # We need to set cwd to project root
+        project_root = Path.cwd().parent if Path.cwd().name == "dashboard" else Path.cwd()
+        
+        subprocess.Popen(
+            cmd,
+            cwd=str(project_root),
+            creationflags=subprocess.CREATE_NEW_CONSOLE # Open in new window for visibility
+        )
+        
+        return jsonify({
+            'status': 'started',
+            'message': 'Orchestration process started',
+            'complexity': complexity
+        })
+    except Exception as e:
+        print(f"❌ Failed to start orchestrator: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/command', methods=['POST'])
 def save_command():
@@ -121,10 +127,30 @@ def stream_logs():
     Stream activity logs via Server-Sent Events (SSE).
     """
     def generate():
-        # In real implementation, this would tail the activity.db
-        # For now, simulate log stream
-        for i in range(10):
-            yield f"data: {{\"message\": \"Iteration {i+1} completed\", \"timestamp\": \"{i}\"}}\n\n"
+        last_id = 0
+        db_path = Path.cwd().parent / "logs" / "activity.db"
+        if Path.cwd().name != "dashboard":
+             db_path = Path.cwd() / "logs" / "activity.db"
+
+        while True:
+            try:
+                if db_path.exists():
+                    with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT id, timestamp, status, details FROM activity WHERE id > ? ORDER BY id ASC", (last_id,))
+                        rows = cursor.fetchall()
+                        
+                        for row in rows:
+                            last_id = row[0]
+                            data = {
+                                "timestamp": row[1],
+                                "status": row[2],
+                                "message": row[3]
+                            }
+                            yield f"data: {json.dumps(data)}\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            
             time.sleep(1)
     
     return Response(generate(), mimetype='text/event-stream')
