@@ -1,4 +1,4 @@
-# 📂 HYBRID CONDUCTOR v7.2.8 <!-- omitting version from filename for easier maintenance -->
+# 📂 HYBRID CONDUCTOR
 
 **Windows-Native LLM Orchestration Framework**
 *From Messy Prompt to QA'd Application*
@@ -155,6 +155,34 @@ sequenceDiagram
 | `worker.py` | **The Hands**: Executes tasks in isolated Git branches. |
 | `dashboard/` | **The UI**: Flask web interface for control. |
 | `loop_guardian.py` | **The Watchdog**: Prevents infinite loops via hashing. |
+
+---
+
+## 🔬 Methodological Comparison
+
+Hybrid Conductor is designed to address specific limitations found in other leading orchestration frameworks when deployed in restricted Windows environments.
+
+### 1. Strategic Comparison
+
+| Framework | Primary Strategy | Key Differentiator |
+| :--- | :--- | :--- |
+| **Hybrid Conductor** | **Deterministic State Machine** | Windows-native & SHA256 Loop Breaking |
+| **Conductor (Google)** | Context-Driven Development | Deep Cloud Ecosystem Integration |
+| **Ralph** | Event-Driven (Pub/Sub) | Hat-Based Personnel Management |
+| **BMAD** | Agentic Planning | Scale-Adaptive Complexity (Auto) |
+
+### 2. Feature Matrix: Sub-Methods
+
+| Sub-Method / Feature | Hybrid Conductor | Conductor (Google) | Ralph-Orchestrator | BMAD-METHOD |
+| :--- | :---: | :---: | :---: | :---: |
+| **OS Requirement** | **Windows Native** 🪟 | Linux / Cloud ☁️ | Linux / Docker 🐳 | Linux / Docker 🐳 |
+| **Installation** | **User-Space (No Admin)** | Toolchain Setup | Containerized | Containerized |
+| **Loop Breaking** | **SHA-256 Hash Pattern** ✅ | N/A | Timeout / Limit | Interaction Limit |
+| **Context Engine** | **Openground (Local)** | Cloud API | Regex / Basic | Vector DB |
+| **Development Flow** | **Linear State Machine** | Artifact-Centric | Event Bus (Pub/Sub) | Agent Swarm |
+| **Complexity Control**| **Explicit Toggle** 🎚️ | Manual | Configurable | Heuristic (Auto) |
+| **Mid-Flight Steering** | **Async Commands** ✅ | Interrupt | Kill / Restart | Supervisor Agent |
+| **Dependencies** | Minimal (`flask`, `openground`) | Google SDKs | Event Infrastructure | Multiple Agents |
 
 ---
 
