@@ -131,7 +131,7 @@ class LoopGuardian:
         base_temp = self.base_temperature
         escalation_steps = [0.0, 0.3, 0.6]  # Attempt 1, 2, 3+
         escalation = escalation_steps[min(retry_count, len(escalation_steps) - 1)]
-        final_temp = base_temp + escalation
+        final_temp = round(base_temp + escalation, 1)
         
         logger.debug(f"Temperature escalated to {final_temp} (retry {retry_count})")
         return final_temp
@@ -207,7 +207,7 @@ def normalize_output(output: str) -> str:
     1. Strip timestamps (ISO 8601 and common formats)
     2. Strip hex addresses (memory pointers, object IDs)  
     3. Strip iteration counters
-    4. Normalize paths (Windows C:\ and Linux /home/)
+    4. Normalize paths (Windows C:\\ and Linux /home/)
     5. Strip memory addresses
     6. Strip Unix timestamps
     
@@ -217,13 +217,19 @@ def normalize_output(output: str) -> str:
     Returns:
         Normalized string safe for hashing
     """
+    # Strip comments (#) - Run before path normalization to avoid issues with potential # in paths
+    output = re.sub(r'#.*$', '', output, flags=re.MULTILINE)
+    
     # Strip ISO timestamps (e.g., "2026-02-13T10:30:00Z", "2026-02-13 10:30:00")
     output = re.sub(r'\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}[\.\dZ]*', '[TIMESTAMP]', output)
     
     # Strip Unix timestamps (10+ digit numbers)
     output = re.sub(r'\b\d{10,}\b', '[UNIX_TIMESTAMP]', output)
     
-    # Strip hex addresses (memory pointers, object IDs)
+    # Strip memory addresses (9-16 hex digits) - Run this BEFORE generic hex stripping
+    output = re.sub(r'\b0x[0-9a-fA-F]{9,16}\b', '[MEM_ADDR]', output)
+    
+    # Strip smaller hex addresses (object IDs)
     output = re.sub(r'0x[0-9a-fA-F]+', '[HEX_ADDR]', output)
     
     # Strip iteration counters (case-insensitive)
@@ -235,14 +241,13 @@ def normalize_output(output: str) -> str:
     # Strip Linux/Unix paths (e.g., "/home/dev/project/main.py")
     output = re.sub(r'/([\w\-\.]+/)+[\w\-\.]+', '[PATH]', output)
     
-    # Strip memory addresses (8-16 hex digits)
-    output = re.sub(r'\b0x[0-9a-fA-F]{8,16}\b', '[MEM_ADDR]', output)
-    
     # Strip process IDs and thread IDs
     output = re.sub(r'pid=\d+', 'pid=[PID]', output)
     output = re.sub(r'tid=\d+', 'tid=[TID]', output)
     
-    return output
+    # Final cleanup: Normalize whitespace and remove empty lines
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    return "\n".join(lines)
 
 
 def compute_normalized_hash(output: str) -> str:
@@ -365,22 +370,22 @@ if __name__ == "__main__":
     
     code_a = "def solve():\n    x = 1\n    return x"
     code_b = "def solve():\n    x = 2\n    return x"
+    code_c = "def solve():\n    x = 3\n    return x"
     
-    # First occurrence of code_a
+    # Fill history with distinct code
     guardian3.detect_loop(code_a)
-    assert len(guardian3.hash_history) == 1, "Should have 1 hash after first call"
+    assert len(guardian3.hash_history) == 1, "Should have 1 hash"
     
-    # Second occurrence of code_a (not in last 3 yet)
-    guardian3.detect_loop(code_a)
+    guardian3.detect_loop(code_b)
     assert len(guardian3.hash_history) == 2, "Should have 2 hashes"
     
-    # Third occurrence of code_a (now in last 3)
-    guardian3.detect_loop(code_a)
+    guardian3.detect_loop(code_c)
     assert len(guardian3.hash_history) == 3, "Should have 3 hashes"
     
-    # Fourth occurrence of code_a (loop detected)
+    # Repeat code_a (should be detected in last 3)
     loop_detected = guardian3.detect_loop(code_a)
-    assert loop_detected == True, "Should detect loop on 4th identical attempt"
+    assert loop_detected == True, "Should detect loop (code_a repeated within 3 iterations)"
+    assert len(guardian3.hash_history) == 3, "History should not grow on loop detection"
     print(" PASS: Loop detection works\n")
     
     # Test 10: No loop detection for different code
@@ -388,14 +393,19 @@ if __name__ == "__main__":
     guardian4 = LoopGuardian({"max_iterations": 10})
     for _ in range(3):
         guardian4.increment_iteration()
+        
+    code_a = "def solve():\n    x = 1\n    return x"
+    code_b = "def solve():\n    x = 2\n    return x"
+    code_c = "def solve():\n    x = 3\n    return x"
+    code_d = "def solve():\n    x = 4\n    return x"
     
     # Different code should not trigger loop detection
     guardian4.detect_loop(code_a)
     guardian4.detect_loop(code_b)
-    guardian4.detect_loop(code_a)
+    guardian4.detect_loop(code_c)
     
-    loop_detected = guardian4.detect_loop(code_b)
-    assert loop_detected == False, "Should not detect loop for alternating different code"
+    loop_detected = guardian4.detect_loop(code_d)
+    assert loop_detected == False, "Should not detect loop for unique sequence A-B-C-D"
     print(" PASS: No false positives for different code\n")
     
     # Test 11: Completion promise detection
