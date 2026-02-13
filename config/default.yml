@@ -1,5 +1,55 @@
-# Default Configuration
+# Hybrid Orchestrator v7.2.8 - Default Configuration
+# Windows-Native LLM Orchestration Framework
+
+# Core Execution Parameters
 max_iterations: 25
 max_time_minutes: 60
 base_temperature: 0.7
 completion_promise: "LOOP_COMPLETE"
+
+# Complexity Mode Defaults
+default_complexity: "streamlined"
+
+# State Management
+state_directory: "state"
+logs_directory: "logs"
+tmp_directory: "C:/tmp"
+
+# Context Retrieval
+context_retrieval:
+  primary: "openground" # Options: openground, regex
+  fallback: "regex"
+  timeout_seconds: 10
+  max_results: 5
+
+# Git Configuration
+git:
+  mcp_server_url: "http://127.0.0.1:8080"
+  use_mcp: true
+  fallback_to_subprocess: true
+
+# Dashboard Configuration
+dashboard:
+  host: "127.0.0.1"
+  port: 5000
+  auto_open_browser: true
+
+# Security Settings
+security:
+  sanitize_commands: true
+  sanitize_branch_names: true
+  localhost_only: true
+  shell_false_default: true
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  activity_db_enabled: true
+  ai_conversation_logging: true
+
+# Performance Settings
+performance:
+  sse_polling_interval_seconds: 1
+  inbox_polling_interval_seconds: 5
+  max_concurrent_tasks: 1
