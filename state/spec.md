@@ -1,2 +1,2 @@
 ﻿# Fast Mode Spec
-Prompt: Create a test file
+Prompt: Create a hello world python script named hello.py
