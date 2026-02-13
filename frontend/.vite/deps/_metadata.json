@@ -1,0 +1,44 @@
+{
+  "hash": "30ac1643",
+  "browserHash": "7431c1c4",
+  "optimized": {
+    "react": {
+      "src": "../../../backend/node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "56365493",
+      "needsInterop": true
+    },
+    "react-dom": {
+      "src": "../../../backend/node_modules/react-dom/index.js",
+      "file": "react-dom.js",
+      "fileHash": "a3abcf5e",
+      "needsInterop": true
+    },
+    "react/jsx-dev-runtime": {
+      "src": "../../../backend/node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "5b01ec8c",
+      "needsInterop": true
+    },
+    "react/jsx-runtime": {
+      "src": "../../../backend/node_modules/react/jsx-runtime.js",
+      "file": "react_jsx-runtime.js",
+      "fileHash": "ba4d8a0a",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../../backend/node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "38bfc025",
+      "needsInterop": true
+    }
+  },
+  "chunks": {
+    "chunk-IDXJASRO": {
+      "file": "chunk-IDXJASRO.js"
+    },
+    "chunk-UFBHMYMT": {
+      "file": "chunk-UFBHMYMT.js"
+    }
+  }
+}

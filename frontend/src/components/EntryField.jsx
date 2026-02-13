@@ -1,0 +1,84 @@
+import React, { useState, useRef, useEffect } from 'react';
+
+const EntryField = ({ onSend }) => {
+  const [input, setInput] = useState('');
+  const [height, setHeight] = useState(120);
+  const [isDragging, setIsDragging] = useState(false);
+  const containerRef = useRef(null);
+
+  const handleKeyDown = (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      handleSend();
+    }
+  };
+
+  const handleSend = () => {
+    if (!input.trim()) return;
+    if (onSend) onSend(input);
+    // Simulate send for now if no handler
+    console.log("Sending:", input);
+    setInput('');
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDragging) return;
+      if (containerRef.current) {
+         const newHeight = e.clientY - containerRef.current.getBoundingClientRect().top;
+         if (newHeight > 60 && newHeight < 500) {
+            setHeight(newHeight);
+         }
+      }
+    };
+    const handleMouseUp = () => setIsDragging(false);
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
+  return (
+    <div 
+        ref={containerRef}
+        className="relative bg-glass-100 backdrop-blur-md rounded-2xl border border-glass-200 p-4 transition-all focus-within:ring-2 ring-primary/50 flex flex-col group"
+        style={{ height: `${height}px` }}
+    >
+      <textarea
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        className="flex-1 w-full bg-transparent border-none outline-none text-white placeholder-gray-400 resize-none font-mono text-sm leading-relaxed"
+        placeholder="Describe your task... (Ctrl+Enter to run)"
+      />
+      
+      <div className="flex justify-between items-center mt-2 opacity-50 group-hover:opacity-100 transition-opacity">
+         <div 
+            className="cursor-ns-resize p-1 hover:bg-glass-200 rounded"
+            onMouseDown={() => setIsDragging(true)}
+            title="Drag to resize"
+         >
+            <svg width="16" height="4" viewBox="0 0 16 4" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="16" height="1" rx="0.5" fill="currentColor"/>
+                <rect y="3" width="16" height="1" rx="0.5" fill="currentColor"/>
+            </svg>
+         </div>
+
+         <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-500 font-mono">{input.length} chars</span>
+            <button 
+              onClick={handleSend}
+              className="bg-primary/80 hover:bg-primary text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-all shadow-lg hover:shadow-primary/20 active:scale-95"
+            >
+              Run
+            </button>
+         </div>
+      </div>
+    </div>
+  );
+};
+export default EntryField;
