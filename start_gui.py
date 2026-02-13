@@ -13,7 +13,7 @@ URL = f"http://{HOST}:{PORT}/"
 
 def start_backend():
     """Starts the Flask backend in a separate thread."""
-    print(f"🚀 Starting Backend on {URL}...")
+    print(f"Starting Backend on {URL}...")
     
     # Run the Flask app
     # use_reloader=False is crucial for Pywebview + Threading
@@ -21,11 +21,11 @@ def start_backend():
 
 def on_closed():
     """Callback when window is closed."""
-    print("🛑 Window closed. Shutting down...")
+    print("Window closed. Shutting down...")
     os._exit(0)
 
 def main():
-    print("🖥️ Initializing HybridConductor GUI...")
+    print("Initializing HybridConductor GUI...")
     
     # 1. Start Backend Thread
     t = threading.Thread(target=start_backend, daemon=True)
@@ -37,7 +37,7 @@ def main():
     time.sleep(1) 
 
     # 3. Create Window
-    print("🎨 Creating window...")
+    print("Creating window...")
     webview.create_window(
         "HybridConductor v8.0", 
         URL,

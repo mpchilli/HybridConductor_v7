@@ -7,8 +7,23 @@ import threading
 import queue
 import os
 
-# Add static folder config for serving React build
-app = Flask(__name__, static_folder='../static', static_url_path='')
+import sys
+import os
+
+def get_resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    # If we are in the bundle, 'backend/static' is at the root of _MEIPASS
+    # If we are in dev, this file is in backend/dashboard/app.py, so '../static' is the way
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(base_path, relative_path)
+    else:
+        # relative_path from this file's directory
+        return os.path.abspath(os.path.join(os.path.dirname(__file__), '..', os.path.basename(relative_path)))
+
+# Use a more robust static folder resolution
+static_dir = get_resource_path('static')
+app = Flask(__name__, static_folder=static_dir, static_url_path='')
 CORS(app)
 
 # Global event queue for broadcasting to all clients
