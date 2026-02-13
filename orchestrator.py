@@ -64,15 +64,15 @@ class Orchestrator:
     - Matches single-threaded execution model of Python
     """
     
-    def __init__(self, project_root: Path):
+    def __init__(self, project_root: Path, preset_name: Optional[str] = None):
         self.project_root = project_root.resolve()
         self.state_dir = project_root / "state"
         self.logs_dir = project_root / "logs"
-        self.config = self._load_config()
+        self.config = self._load_config(preset_name)
         self.current_state = State.PLANNING
         self.loop_guardian = LoopGuardian(self.config)
         self.context_fetcher = ContextFetcher(self.project_root)
-        self.complexity_mode = ComplexityMode.STREAMLINED  # Default
+        self.complexity_mode = ComplexityMode(self.config.get("default_complexity", "streamlined")) # Use config default
         
         # Datetime stamped task folder in temp directory
         date_stamp = datetime.now().strftime("%m%d%y")
@@ -80,26 +80,61 @@ class Orchestrator:
         self.tmp_dir.mkdir(parents=True, exist_ok=True)
         print(f" Tasks will be stored in: {self.tmp_dir}")
     
-    def _load_config(self) -> dict:
-        """Load configuration from YAML file."""
+    def _load_config(self, preset_name: Optional[str] = None) -> dict:
+        """
+        Load configuration from YAML file and optionally merge a preset.
+        
+        WHY PRESET MERGING:
+        - Allows standard defaults while permitting granular task-specific overrides
+        - Aligns with ralph-orchestrator pattern of 31+ specialized profiles
+        """
         config_path = self.project_root / "config" / "default.yml"
-        if not config_path.exists():
-            return {
-                "max_iterations": 25,
-                "max_time_minutes": 60,
-                "base_temperature": 0.7,
-                "completion_promise": "LOOP_COMPLETE"
-            }
-        with open(config_path, "r") as f:
-            try:
-                return yaml.safe_load(f)
-            except Exception:
-                return {
-                    "max_iterations": 25,
-                    "max_time_minutes": 60,
-                    "base_temperature": 0.7,
-                    "completion_promise": "LOOP_COMPLETE"
-                }
+        config = {
+            "max_iterations": 25,
+            "max_time_minutes": 60,
+            "base_temperature": 0.7,
+            "completion_promise": "LOOP_COMPLETE",
+            "default_complexity": "streamlined"
+        }
+        
+        if config_path.exists():
+            with open(config_path, "r") as f:
+                try:
+                    loaded = yaml.safe_load(f)
+                    if loaded: config.update(loaded)
+                except Exception as e:
+                    print(f" Warning: Failed to load default config: {e}")
+
+        # Merge preset if requested
+        if preset_name:
+            # Find preset file in registry
+            preset_file = None
+            for p in config.get("presets", []):
+                if p["name"] == preset_name:
+                    preset_file = self.project_root / p["file"]
+                    break
+            
+            if not preset_file:
+                # Try direct file path if not in registry
+                preset_file = self.project_root / "presets" / f"{preset_name}.yml"
+                
+            if preset_file and preset_file.exists():
+                print(f" Loading preset: {preset_name} from {preset_file.name}")
+                with open(preset_file, "r") as f:
+                    try:
+                        preset_data = yaml.safe_load(f)
+                        if preset_data:
+                            # Update config with preset data
+                            config.update(preset_data)
+                            # If preset has a mode, ensure it's synced to default_complexity
+                            if "mode" in preset_data:
+                                config["default_complexity"] = preset_data["mode"]
+                    except Exception as e:
+                        print(f" Warning: Failed to load preset '{preset_name}': {e}")
+            else:
+                print(f" Warning: Preset '{preset_name}' not found.")
+
+        return config
     
     def _log_event(self, status: str, details: str, iteration: int = 0) -> None:
         """Log event to SQLite activity database."""
@@ -423,12 +458,13 @@ if __name__ == "__main__":
         parser = argparse.ArgumentParser(description="Hybrid Orchestrator v7.2.8")
         parser.add_argument("--prompt", type=str, help="Prompt to execute")
         parser.add_argument("--complexity", type=str, default="streamlined", choices=["fast", "streamlined", "full"], help="Complexity mode")
+        parser.add_argument("--preset", type=str, help="Use a named configuration preset")
         parser.add_argument("--resume", action="store_true", help="Resume from last saved session")
         
         args = parser.parse_args()
         
         project_root = Path.cwd()
-        orchestrator = Orchestrator(project_root)
+        orchestrator = Orchestrator(project_root, preset_name=args.preset)
         
         if args.resume:
             if orchestrator.resume():

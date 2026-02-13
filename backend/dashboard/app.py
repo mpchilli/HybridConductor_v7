@@ -6,9 +6,12 @@ import random
 import threading
 import queue
 import os
-
 import sys
-import os
+import yaml
+from pathlib import Path
+
+# Resolve project root (parent of 'backend' directory)
+PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
 
 def get_resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -184,6 +187,32 @@ def reset():
     # Optional: Clear queue or broadcast a 'reset' event
     event_queue.put({"type": "reset", "timestamp": time.time()})
     return jsonify({"status": "success", "message": "Session reset"})
+
+@app.route('/api/presets', methods=['GET'])
+def get_presets():
+    config_path = PROJECT_ROOT / "config" / "default.yml"
+    if not config_path.exists():
+        return jsonify([])
+    
+    try:
+        with open(config_path, "r") as f:
+            config = yaml.safe_load(f)
+            return jsonify(config.get("presets", []))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/config', methods=['GET'])
+def get_config():
+    config_path = PROJECT_ROOT / "config" / "default.yml"
+    if not config_path.exists():
+        return jsonify({})
+    
+    try:
+        with open(config_path, "r") as f:
+            config = yaml.safe_load(f)
+            return jsonify(config)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 def update_task_status(task_id, status):
     for task in task_state["tasks"]:

@@ -1,2 +1,6 @@
 mode: streamlined
-iterations: 10
+max_iterations: 15
+base_temperature: 0.7
+completion_promise: TEST_PASSED
+use_openground: true
+throttle_seconds: 2

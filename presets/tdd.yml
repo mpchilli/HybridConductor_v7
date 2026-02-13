@@ -1,0 +1,7 @@
+mode: streamlined
+max_iterations: 20
+base_temperature: 0.4
+completion_promise: TEST_PASSED
+use_openground: true
+throttle_seconds: 3
+instructions: "Focus on writing minimal code to pass unit tests."

@@ -1,2 +1,6 @@
 mode: fast
-iterations: 3
+max_iterations: 3
+base_temperature: 0.5
+completion_promise: LOOP_COMPLETE
+use_openground: false
+throttle_seconds: 1

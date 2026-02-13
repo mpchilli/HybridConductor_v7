@@ -1,4 +1,4 @@
-# Hybrid Orchestrator v7.2.8 - Default Configuration
+# Hybrid Orchestrator v8.0.0 - Default Configuration
 # Windows-Native LLM Orchestration Framework
 
 # Core Execution Parameters
@@ -53,3 +53,21 @@ performance:
   sse_polling_interval_seconds: 1
   inbox_polling_interval_seconds: 5
   max_concurrent_tasks: 1
+
+# Presets Registry
+presets:
+  - name: fast
+    file: presets/fast_track.yml
+    description: Skip planning; direct BIST loop (≤3 iterations)
+  - name: streamlined
+    file: presets/streamlined.yml
+    description: Minimal spec + TDD workflow (default)
+  - name: full
+    file: presets/full.yml
+    description: Spec-driven with thorough verification gates
+  - name: tdd
+    file: presets/tdd.yml
+    description: Test-Driven Development focus
+  - name: debug
+    file: presets/debug.yml
+    description: High-temperature exploration for stuck tasks

@@ -1,0 +1,7 @@
+mode: full
+max_iterations: 10
+base_temperature: 1.2
+completion_promise: DEBUG_RESOLVED
+use_openground: true
+throttle_seconds: 1
+instructions: "Aggressive exploration of alternative implementations."
