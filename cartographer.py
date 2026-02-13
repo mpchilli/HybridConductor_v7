@@ -93,8 +93,8 @@ def generate_map(target_dir: Path, output_path: Optional[Path] = None) -> bool:
     if output_path is None:
         output_path = Path("state") / "codebase_map.md"
     
-    print(f"🗺️ Generating codebase map for: {target_dir}")
-    print(f"📝 Output: {output_path}")
+    print(f" Generating codebase map for: {target_dir}")
+    print(f" Output: {output_path}")
     
     # Try codesum first
     try:
@@ -118,35 +118,35 @@ def generate_map(target_dir: Path, output_path: Optional[Path] = None) -> bool:
             f.write(f"- Tool: codesum\n")
             f.write(f"- Generated: {Path(target_dir).name}\n")
         
-        print(f"✅ Map generated successfully using codesum")
+        print(f" Map generated successfully using codesum")
         return True
         
     except FileNotFoundError:
-        print("⚠️ codesum not found. Using custom walker fallback...")
+        print(" codesum not found. Using custom walker fallback...")
         _generate_basic_map(target_dir, output_path)
-        print(f"✅ Basic map generated using custom walker")
+        print(f" Basic map generated using custom walker")
         return True
         
     except subprocess.CalledProcessError as e:
-        print(f"⚠️ codesum failed (exit {e.returncode}). Using custom walker fallback...")
+        print(f" codesum failed (exit {e.returncode}). Using custom walker fallback...")
         print(f"   Error: {e.stderr[:200]}")
         _generate_basic_map(target_dir, output_path)
         return True
         
     except subprocess.TimeoutExpired:
-        print("⚠️ codesum timeout (30s). Using custom walker fallback...")
+        print(" codesum timeout (30s). Using custom walker fallback...")
         _generate_basic_map(target_dir, output_path)
         return True
         
     except Exception as e:
-        print(f"⚠️ Unexpected error: {e}. Using custom walker fallback...")
+        print(f" Unexpected error: {e}. Using custom walker fallback...")
         _generate_basic_map(target_dir, output_path)
         return True
 
 
 # TEST SUITE - MUST PASS BEFORE PROCEEDING
 if __name__ == "__main__":
-    print("🧪 Running cartographer.py comprehensive tests...\n")
+    print(" Running cartographer.py comprehensive tests...\n")
     
     import tempfile
     import shutil
@@ -175,7 +175,7 @@ if __name__ == "__main__":
         assert "main.py" in content, "Should include Python files"
         assert "subdir/" in content, "Should include subdirectories"
         
-    print("✅ PASS: Custom walker works\n")
+    print(" PASS: Custom walker works\n")
     
     # Test 2: Output path handling
     print("Test 2: Output path handling")
@@ -198,7 +198,7 @@ if __name__ == "__main__":
         default_output.unlink()
         default_output.parent.rmdir()
         
-    print("✅ PASS: Output path handling works\n")
+    print(" PASS: Output path handling works\n")
     
     # Test 3: Directory exclusion
     print("Test 3: Directory exclusion")
@@ -226,7 +226,7 @@ if __name__ == "__main__":
         assert ".git" not in content, "Should exclude .git directory"
         assert "__pycache__" not in content, "Should exclude __pycache__"
         
-    print("✅ PASS: Directory exclusion works\n")
+    print(" PASS: Directory exclusion works\n")
     
     # Test 4: Error handling
     print("Test 4: Error handling")
@@ -239,7 +239,7 @@ if __name__ == "__main__":
         # Should fallback gracefully, not crash
         assert isinstance(success, bool), "Should return boolean"
         
-    print("✅ PASS: Error handling works\n")
+    print(" PASS: Error handling works\n")
     
     # Test 5: File type filtering
     print("Test 5: File type filtering")
@@ -264,10 +264,10 @@ if __name__ == "__main__":
         assert "README.md" in content, "Should include .md"
         assert "binary.exe" not in content, "Should exclude binary files"
         
-    print("✅ PASS: File type filtering works\n")
+    print(" PASS: File type filtering works\n")
     
     print("=" * 60)
-    print("🎉 ALL 5 TESTS PASSED - cartographer.py is production-ready")
+    print(" ALL 5 TESTS PASSED - cartographer.py is production-ready")
     print("=" * 60)
     print("\nNext step: Create context_fetcher.py")
     print("Command: @file context_fetcher.py")

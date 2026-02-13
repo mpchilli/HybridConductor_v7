@@ -269,7 +269,7 @@ def compute_normalized_hash(output: str) -> str:
 # TEST SUITE - MUST PASS BEFORE PROCEEDING
 if __name__ == "__main__":
     print("=" * 70)
-    print("🧪 Running loop_guardian.py comprehensive tests...")
+    print(" Running loop_guardian.py comprehensive tests...")
     print("=" * 70)
     print()
     
@@ -283,7 +283,7 @@ if __name__ == "__main__":
     assert "[UNIX_TIMESTAMP]" in result1, "Should replace Unix timestamp"
     assert "2026-02-13" not in result1, "Should strip ISO date"
     assert "1707841800" not in result1, "Should strip Unix timestamp"
-    print("✅ PASS: Timestamp normalization works\n")
+    print(" PASS: Timestamp normalization works\n")
     
     # Test 2: normalize_output strips hex addresses
     print("Test 2: Hex address normalization")
@@ -293,7 +293,7 @@ if __name__ == "__main__":
     assert result2.count("[HEX_ADDR]") == 2, "Should replace both hex addresses"
     assert "0x12345678" not in result2, "Should strip first hex literal"
     assert "0xABCD1234" not in result2, "Should strip second hex literal"
-    print("✅ PASS: Hex address normalization works\n")
+    print(" PASS: Hex address normalization works\n")
     
     # Test 3: normalize_output strips paths
     print("Test 3: Path normalization")
@@ -305,7 +305,7 @@ if __name__ == "__main__":
     assert "[PATH]" in result3_lin, "Should replace Linux path"
     assert "C:\\Users" not in result3_win, "Should strip Windows path"
     assert "/home/dev" not in result3_lin, "Should strip Linux path"
-    print("✅ PASS: Path normalization works\n")
+    print(" PASS: Path normalization works\n")
     
     # Test 4: normalize_output strips memory addresses
     print("Test 4: Memory address normalization")
@@ -313,7 +313,7 @@ if __name__ == "__main__":
     result4 = normalize_output(test4)
     assert "[MEM_ADDR]" in result4, "Should replace memory address"
     assert "0x7fff5fbff000" not in result4, "Should strip memory address"
-    print("✅ PASS: Memory address normalization works\n")
+    print(" PASS: Memory address normalization works\n")
     
     # Test 5: normalize_output strips PIDs and TIDs
     print("Test 5: Process/thread ID normalization")
@@ -323,7 +323,7 @@ if __name__ == "__main__":
     assert "tid=[TID]" in result5, "Should replace thread ID"
     assert "pid=12345" not in result5, "Should strip process ID"
     assert "tid=67890" not in result5, "Should strip thread ID"
-    print("✅ PASS: PID/TID normalization works\n")
+    print(" PASS: PID/TID normalization works\n")
     
     # Test 6: compute_normalized_hash produces identical output for identical logic
     print("Test 6: Hash determinism")
@@ -335,7 +335,7 @@ if __name__ == "__main__":
     hash3 = compute_normalized_hash(code3)
     assert hash1 == hash2, "Identical logic with different timestamps should produce identical hashes"
     assert hash1 == hash3, "Identical logic with different comments should produce identical hashes"
-    print(f"✅ PASS: Hash determinism confirmed (hash: {hash1[:16]}...)\n")
+    print(f" PASS: Hash determinism confirmed (hash: {hash1[:16]}...)\n")
     
     # Test 7: LoopGuardian temperature escalation
     print("Test 7: Temperature escalation")
@@ -345,7 +345,7 @@ if __name__ == "__main__":
     assert guardian.get_escalated_temperature(1) == 1.0, "Attempt 2: +0.3 (1.0)"
     assert guardian.get_escalated_temperature(2) == 1.3, "Attempt 3: +0.6 (1.3)"
     assert guardian.get_escalated_temperature(3) == 1.3, "Attempt 4+: capped at 1.3"
-    print("✅ PASS: Temperature escalation works\n")
+    print(" PASS: Temperature escalation works\n")
     
     # Test 8: LoopGuardian iteration tracking
     print("Test 8: Iteration tracking")
@@ -354,7 +354,7 @@ if __name__ == "__main__":
         guardian2.increment_iteration()
     assert guardian2.iteration_count == 5, "Should track 5 iterations"
     assert guardian2.should_terminate() == True, "Should terminate at max iterations"
-    print("✅ PASS: Iteration tracking works\n")
+    print(" PASS: Iteration tracking works\n")
     
     # Test 9: Loop detection with hash history
     print("Test 9: Loop detection")
@@ -381,7 +381,7 @@ if __name__ == "__main__":
     # Fourth occurrence of code_a (loop detected)
     loop_detected = guardian3.detect_loop(code_a)
     assert loop_detected == True, "Should detect loop on 4th identical attempt"
-    print("✅ PASS: Loop detection works\n")
+    print(" PASS: Loop detection works\n")
     
     # Test 10: No loop detection for different code
     print("Test 10: No false positives for different code")
@@ -396,21 +396,21 @@ if __name__ == "__main__":
     
     loop_detected = guardian4.detect_loop(code_b)
     assert loop_detected == False, "Should not detect loop for alternating different code"
-    print("✅ PASS: No false positives for different code\n")
+    print(" PASS: No false positives for different code\n")
     
     # Test 11: Completion promise detection
     print("Test 11: Completion promise detection")
     guardian5 = LoopGuardian({"completion_promise": "LOOP_COMPLETE"})
     assert guardian5.check_completion_promise("Task done LOOP_COMPLETE") == True, "Should detect completion promise"
     assert guardian5.check_completion_promise("Task done") == False, "Should not detect without promise"
-    print("✅ PASS: Completion promise detection works\n")
+    print(" PASS: Completion promise detection works\n")
     
     # Test 12: Time-based termination
     print("Test 12: Time-based termination")
     guardian6 = LoopGuardian({"max_time_minutes": 0.0001})  # ~6 milliseconds
     time.sleep(0.01)  # Sleep longer than limit
     assert guardian6.should_terminate() == True, "Should terminate after time limit"
-    print("✅ PASS: Time-based termination works\n")
+    print(" PASS: Time-based termination works\n")
     
     # Test 13: State reset
     print("Test 13: State reset")
@@ -427,7 +427,7 @@ if __name__ == "__main__":
     assert guardian7.iteration_count == 0, "Should reset iterations"
     assert guardian7.retry_count == 0, "Should reset retries"
     assert len(guardian7.hash_history) == 0, "Should clear hash history"
-    print("✅ PASS: State reset works\n")
+    print(" PASS: State reset works\n")
     
     # Test 14: Cross-platform path normalization
     print("Test 14: Cross-platform path handling")
@@ -440,8 +440,8 @@ if __name__ == "__main__":
     assert result14.count("[PATH]") == 4, "Should normalize all 4 paths"
     assert "C:\\Users" not in result14, "Should strip Windows paths"
     assert "/home/dev" not in result14, "Should strip Linux paths"
-    print("✅ PASS: Cross-platform path handling works\n")
+    print(" PASS: Cross-platform path handling works\n")
     
     print("=" * 70)
-    print("🎉 ALL 14 TESTS PASSED - loop_guardian.py is production-ready")
+    print(" ALL 14 TESTS PASSED - loop_guardian.py is production-ready")
     print("=" * 70)

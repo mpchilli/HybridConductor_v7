@@ -19,7 +19,7 @@ WINDOWS-SPECIFIC CONSIDERATIONS:
 - Windows path handling for Openground binary
 - UTF-8 encoding for all search operations
 """
-
+import os
 import subprocess
 import re
 from pathlib import Path
@@ -72,7 +72,7 @@ class ContextFetcher:
         
         if self.openground_failures >= self.max_openground_failures:
             self.use_openground = False
-            print("⚠️ Openground disabled (too many failures)")
+            print(" Openground disabled (too many failures)")
             return None
         
         try:
@@ -90,7 +90,7 @@ class ContextFetcher:
             )
             
             elapsed = time.time() - start_time
-            print(f"🔍 Openground search: {elapsed:.2f}s")
+            print(f" Openground search: {elapsed:.2f}s")
             
             if result.stdout.strip():
                 return result.stdout.strip()
@@ -98,11 +98,11 @@ class ContextFetcher:
             
         except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             self.openground_failures += 1
-            print(f"⚠️ Openground search failed ({self.openground_failures}/{self.max_openground_failures}): {e}")
+            print(f" Openground search failed ({self.openground_failures}/{self.max_openground_failures}): {e}")
             return None
         except Exception as e:
             self.openground_failures += 1
-            print(f"⚠️ Openground unexpected error ({self.openground_failures}/{self.max_openground_failures}): {e}")
+            print(f" Openground unexpected error ({self.openground_failures}/{self.max_openground_failures}): {e}")
             return None
     
     def _regex_fallback_search(self, query: str) -> str:
@@ -115,7 +115,7 @@ class ContextFetcher:
         Returns:
             Formatted search results
         """
-        print("🔍 Using regex fallback search...")
+        print(" Using regex fallback search...")
         
         results = []
         query_lower = query.lower()
@@ -153,14 +153,14 @@ class ContextFetcher:
                                         break
                             
                             if matching_lines:
-                                results.append(f"\n📄 {file_path.relative_to(self.project_root)}")
+                                results.append(f"\n {file_path.relative_to(self.project_root)}")
                                 results.extend(matching_lines)
                     
                     except (UnicodeDecodeError, PermissionError, OSError):
                         continue
         
         except Exception as e:
-            print(f"⚠️ Regex search error: {e}")
+            print(f" Regex search error: {e}")
         
         if results:
             return "# Regex Fallback Search Results\n\n" + "\n".join(results)
@@ -186,11 +186,10 @@ class ContextFetcher:
         return self._regex_fallback_search(query)
 
 
-import os # Required for os.walk
 
 # TEST SUITE - MUST PASS BEFORE PROCEEDING
 if __name__ == "__main__":
-    print("🧪 Running context_fetcher.py comprehensive tests...\n")
+    print(" Running context_fetcher.py comprehensive tests...\n")
     
     import tempfile
     
@@ -206,7 +205,7 @@ if __name__ == "__main__":
         assert isinstance(fetcher.openground_failures, int), "Should track failures"
         assert fetcher.use_openground == True, "Should enable Openground by default"
         
-    print("✅ PASS: Initialization works\n")
+    print(" PASS: Initialization works\n")
     
     # Test 2: Regex fallback search
     print("Test 2: Regex fallback search")
@@ -225,7 +224,7 @@ if __name__ == "__main__":
         assert "main.py" in result or "utils.py" in result, "Should include matching files"
         assert "Regex Fallback Search" in result, "Should indicate fallback mode"
         
-    print("✅ PASS: Regex fallback works\n")
+    print(" PASS: Regex fallback works\n")
     
     # Test 3: File type filtering
     print("Test 3: File type filtering")
@@ -247,7 +246,7 @@ if __name__ == "__main__":
         assert "README.md" in result, "Should include .md files"
         # binary.exe should be skipped (not text)
         
-    print("✅ PASS: File type filtering works\n")
+    print(" PASS: File type filtering works\n")
     
     # Test 4: Directory exclusion
     print("Test 4: Directory exclusion")
@@ -274,7 +273,7 @@ if __name__ == "__main__":
         assert ".git" not in result, "Should exclude .git"
         assert "__pycache__" not in result, "Should exclude __pycache__"
         
-    print("✅ PASS: Directory exclusion works\n")
+    print(" PASS: Directory exclusion works\n")
     
     # Test 5: Error handling
     print("Test 5: Error handling")
@@ -292,7 +291,7 @@ if __name__ == "__main__":
         result2 = fetcher.fetch_context("test@#$%^&*()")
         assert isinstance(result2, str), "Should handle special chars"
         
-    print("✅ PASS: Error handling works\n")
+    print(" PASS: Error handling works\n")
     
     # Test 6: Openground failure tracking
     print("Test 6: Openground failure tracking")
@@ -312,10 +311,10 @@ if __name__ == "__main__":
         
         assert "Regex Fallback" in result, "Should fallback after max failures"
         
-    print("✅ PASS: Failure tracking works\n")
+    print(" PASS: Failure tracking works\n")
     
     print("=" * 60)
-    print("🎉 ALL 6 TESTS PASSED - context_fetcher.py is production-ready")
+    print(" ALL 6 TESTS PASSED - context_fetcher.py is production-ready")
     print("=" * 60)
     print("\nNext step: Create worker.py")
     print("Command: @file worker.py")

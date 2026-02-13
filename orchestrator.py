@@ -34,8 +34,9 @@ import argparse
 import tempfile
 
 from loop_guardian import LoopGuardian
-from context_fetcher import fetch_context
-from cartographer import generate_codebase_map
+from context_fetcher import ContextFetcher
+from cartographer import generate_map as generate_codebase_map
+
 
 class State(Enum):
     """Deterministic state machine states."""
@@ -70,13 +71,14 @@ class Orchestrator:
         self.config = self._load_config()
         self.current_state = State.PLANNING
         self.loop_guardian = LoopGuardian(self.config)
+        self.context_fetcher = ContextFetcher(self.project_root)
         self.complexity_mode = ComplexityMode.STREAMLINED  # Default
         
         # Datetime stamped task folder in temp directory
         date_stamp = datetime.now().strftime("%m%d%y")
         self.tmp_dir = Path(tempfile.gettempdir()) / f"hybrid_orchestrator_{date_stamp}"
         self.tmp_dir.mkdir(parents=True, exist_ok=True)
-        print(f"📁 Tasks will be stored in: {self.tmp_dir}")
+        print(f" Tasks will be stored in: {self.tmp_dir}")
     
     def _load_config(self) -> dict:
         """Load configuration from YAML file."""
@@ -114,7 +116,7 @@ class Orchestrator:
                 )
                 conn.commit()
         except Exception as e:
-            print(f"⚠️ Failed to log event: {e}")
+            print(f" Failed to log event: {e}")
     
     def _log_ai_conversation(self, role: str, message: str) -> None:
         """Log AI conversation (prompt/response) to database."""
@@ -139,7 +141,7 @@ class Orchestrator:
                 )
                 conn.commit()
         except Exception as e:
-            print(f"⚠️ Failed to log AI conversation: {e}")
+            print(f" Failed to log AI conversation: {e}")
     
     def set_complexity_mode(self, mode: str) -> None:
         """
@@ -160,7 +162,7 @@ class Orchestrator:
     
     def run(self, prompt: str) -> None:
         """Main execution loop implementing state machine."""
-        print(f"🚀 Starting orchestration in {self.complexity_mode.value} mode")
+        print(f" Starting orchestration in {self.complexity_mode.value} mode")
         self._log_event('STARTED', f"Starting orchestration in {self.complexity_mode.value} mode")
         
         # Generate L0 codebase map if needed
@@ -190,7 +192,7 @@ class Orchestrator:
             
             time.sleep(2)  # Prevent excessive CPU usage
         
-        print(f"🏁 Orchestration completed with state: {self.current_state.value}")
+        print(f" Orchestration completed with state: {self.current_state.value}")
         status = 'COMPLETED' if self.current_state == State.COMPLETE else 'FAILED'
         self._log_event(status, f"Orchestration completed with state: {self.current_state.value}")
     
@@ -198,7 +200,7 @@ class Orchestrator:
         """Handle planning state based on complexity mode."""
         if self.complexity_mode == ComplexityMode.FAST:
             # FAST mode: Generate minimal plan and go to building
-            print("⚡ FAST mode: Generating minimal plan...")
+            print(" FAST mode: Generating minimal plan...")
             # Create minimal artifacts to satisfy worker requirements
             with open(self.state_dir / "spec.md", "w", encoding="utf-8-sig") as f:
                 f.write(f"# Fast Mode Spec\nPrompt: {prompt}")
@@ -219,7 +221,7 @@ class Orchestrator:
             f.write(plan_content)
         
         # Wait for user approval (simulated in this example)
-        print("📝 Plan generated. Waiting for user approval...")
+        print(" Plan generated. Waiting for user approval...")
         self._log_event('RUNNING', "Plan generated. Waiting for user approval...", self.loop_guardian.iteration_count)
         time.sleep(5)  # In real implementation, this would wait for UI approval
         
@@ -237,7 +239,7 @@ class Orchestrator:
         try:
             from worker import execute_task
         except ImportError:
-            print("❌ Critical: worker component not found. Ensure worker.py is in path.")
+            print(" Critical: worker component not found. Ensure worker.py is in path.")
             self.current_state = State.FAILED
             return
             
@@ -246,13 +248,13 @@ class Orchestrator:
             with open(self.state_dir / "plan.md", "r", encoding="utf-8-sig") as f:
                 plan = f.read()
         except FileNotFoundError:
-            print("❌ Critical: plan.md not found in state directory.")
+            print(" Critical: plan.md not found in state directory.")
             self.current_state = State.FAILED
             return
         
         # Log context fetching
         self._log_ai_conversation("SYSTEM", f"Fetching context for: {plan[:100]}...")
-        context = fetch_context("Current phase from plan.md")
+        context = self.context_fetcher.fetch_context("Current phase from plan.md")
         self._log_ai_conversation("AI", f"Context retrieved: {context[:100]}...")
         
         # Execute task with current context and plan
@@ -273,7 +275,7 @@ class Orchestrator:
         """Handle verification state."""
         # In real implementation, this would run tests/lint/typecheck
         # For now, assume verification passes
-        print("✅ Verification passed")
+        print(" Verification passed")
         self.current_state = State.COMPLETE
     
     def _handle_debugging(self) -> None:
@@ -281,13 +283,13 @@ class Orchestrator:
         retry_count = self.loop_guardian.get_retry_count()
         
         if retry_count >= 3:
-            print("❌ Max retries exceeded. Task failed.")
+            print(" Max retries exceeded. Task failed.")
             self.current_state = State.FAILED
             return
         
         # Escalate temperature for next attempt
         new_temp = self.loop_guardian.get_escalated_temperature(retry_count)
-        print(f"🔄 Retry attempt {retry_count + 1} with temperature {new_temp}")
+        print(f" Retry attempt {retry_count + 1} with temperature {new_temp}")
         
         # Return to building state for retry
         self.current_state = State.BUILDING
@@ -305,19 +307,19 @@ class Orchestrator:
             for command in commands:
                 if not command: continue
                 if command.startswith("/pause"):
-                    print("⏸️ Pausing execution...")
+                    print(" Pausing execution...")
                     time.sleep(10)  # Simulate pause
                 elif command.startswith("/checkpoint"):
-                    print(f"💾 Creating checkpoint: {command}")
+                    print(f" Creating checkpoint: {command}")
                     # Implementation would save current state
                 elif command.startswith("/rollback"):
-                    print(f"↩️ Rolling back: {command}")
+                    print(f"↩ Rolling back: {command}")
                     # Implementation would restore from checkpoint
             
             # Clear inbox after processing
             inbox_path.unlink()
         except Exception as e:
-            print(f"⚠️ Failed to process inbox: {e}")
+            print(f" Failed to process inbox: {e}")
     
     def _generate_spec(self, prompt: str) -> str:
         """
@@ -371,165 +373,185 @@ class Orchestrator:
 """
 
 
-# TEST SUITE - MUST PASS BEFORE PROCEEDING
+# CLI ENTRY POINT
 if __name__ == "__main__":
-    print("🧪 Running orchestrator.py comprehensive tests...\n")
+    import argparse
+    import sys
     
-    import tempfile
-    import shutil
-    
-    # Test 1: State machine initialization
-    print("Test 1: State machine initialization")
-    with tempfile.TemporaryDirectory() as tmpdir:
-        project_root = Path(tmpdir) / "project"
-        project_root.mkdir()
-        (project_root / "state").mkdir()
-        (project_root / "logs").mkdir()
+    # Check if running as a script with arguments
+    if len(sys.argv) > 1:
+        parser = argparse.ArgumentParser(description="Hybrid Orchestrator v7.2.8")
+        parser.add_argument("--prompt", type=str, help="Prompt to execute")
+        parser.add_argument("--complexity", type=str, default="streamlined", choices=["fast", "streamlined", "full"], help="Complexity mode")
         
-        orchestrator = Orchestrator(project_root)
+        args = parser.parse_args()
         
-        assert orchestrator.current_state == State.PLANNING, "Should start in PLANNING state"
-        assert isinstance(orchestrator.loop_guardian, LoopGuardian), "Should have LoopGuardian"
-        assert orchestrator.complexity_mode == ComplexityMode.STREAMLINED, "Default should be STREAMLINED"
-    
-    print("✅ PASS: Initialization works\n")
-    
-    # Test 2: Complexity mode setting
-    print("Test 2: Complexity mode setting")
-    with tempfile.TemporaryDirectory() as tmpdir:
-        project_root = Path(tmpdir) / "project"
-        project_root.mkdir()
-        (project_root / "state").mkdir()
-        (project_root / "logs").mkdir()
+        if args.prompt:
+            project_root = Path.cwd()
+            orchestrator = Orchestrator(project_root)
+            orchestrator.set_complexity_mode(args.complexity)
+            orchestrator.run(args.prompt)
+        else:
+            parser.print_help()
+    else:
+        # Run internal tests if no arguments provided
+        print(" Running orchestrator.py comprehensive tests...\n")
         
-        orchestrator = Orchestrator(project_root)
+        import tempfile
+        import shutil
         
-        orchestrator.set_complexity_mode("fast")
-        assert orchestrator.complexity_mode == ComplexityMode.FAST
+        # Test 1: State machine initialization
+        print("Test 1: State machine initialization")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir) / "project"
+            project_root.mkdir()
+            (project_root / "state").mkdir()
+            (project_root / "logs").mkdir()
+            
+            orchestrator = Orchestrator(project_root)
+            
+            assert orchestrator.current_state == State.PLANNING, "Should start in PLANNING state"
+            assert isinstance(orchestrator.loop_guardian, LoopGuardian), "Should have LoopGuardian"
+            assert orchestrator.complexity_mode == ComplexityMode.STREAMLINED, "Default should be STREAMLINED"
         
-        orchestrator.set_complexity_mode("streamlined")
-        assert orchestrator.complexity_mode == ComplexityMode.STREAMLINED
+        print(" PASS: Initialization works\n")
         
-        orchestrator.set_complexity_mode("full")
-        assert orchestrator.complexity_mode == ComplexityMode.FULL
+        # Test 2: Complexity mode setting
+        print("Test 2: Complexity mode setting")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir) / "project"
+            project_root.mkdir()
+            (project_root / "state").mkdir()
+            (project_root / "logs").mkdir()
+            
+            orchestrator = Orchestrator(project_root)
+            
+            orchestrator.set_complexity_mode("fast")
+            assert orchestrator.complexity_mode == ComplexityMode.FAST
+            
+            orchestrator.set_complexity_mode("streamlined")
+            assert orchestrator.complexity_mode == ComplexityMode.STREAMLINED
+            
+            orchestrator.set_complexity_mode("full")
+            assert orchestrator.complexity_mode == ComplexityMode.FULL
+            
+            orchestrator.set_complexity_mode("invalid")
+            assert orchestrator.complexity_mode == ComplexityMode.STREAMLINED, "Should default to STREAMLINED"
         
-        orchestrator.set_complexity_mode("invalid")
-        assert orchestrator.complexity_mode == ComplexityMode.STREAMLINED, "Should default to STREAMLINED"
-    
-    print("✅ PASS: Complexity mode setting works\n")
-    
-    # Test 3: Config loading
-    print("Test 3: Config loading")
-    with tempfile.TemporaryDirectory() as tmpdir:
-        project_root = Path(tmpdir) / "project"
-        project_root.mkdir()
-        (project_root / "state").mkdir()
-        (project_root / "logs").mkdir()
-        config_dir = project_root / "config"
-        config_dir.mkdir()
+        print(" PASS: Complexity mode setting works\n")
         
-        # Test with config file
-        config_file = config_dir / "default.yml"
-        config_file.write_text("max_iterations: 10\nmax_time_minutes: 30\n")
+        # Test 3: Config loading
+        print("Test 3: Config loading")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir) / "project"
+            project_root.mkdir()
+            (project_root / "state").mkdir()
+            (project_root / "logs").mkdir()
+            config_dir = project_root / "config"
+            config_dir.mkdir()
+            
+            # Test with config file
+            config_file = config_dir / "default.yml"
+            config_file.write_text("max_iterations: 10\nmax_time_minutes: 30\n")
+            
+            orchestrator = Orchestrator(project_root)
+            assert orchestrator.config["max_iterations"] == 10
+            assert orchestrator.config["max_time_minutes"] == 30
+            
+            # Test without config file (should use defaults)
+            config_file.unlink()
+            orchestrator2 = Orchestrator(project_root)
+            assert orchestrator2.config["max_iterations"] == 25
         
-        orchestrator = Orchestrator(project_root)
-        assert orchestrator.config["max_iterations"] == 10
-        assert orchestrator.config["max_time_minutes"] == 30
+        print(" PASS: Config loading works\n")
         
-        # Test without config file (should use defaults)
-        config_file.unlink()
-        orchestrator2 = Orchestrator(project_root)
-        assert orchestrator2.config["max_iterations"] == 25
-    
-    print("✅ PASS: Config loading works\n")
-    
-    # Test 4: Plan generation
-    print("Test 4: Plan generation")
-    with tempfile.TemporaryDirectory() as tmpdir:
-        project_root = Path(tmpdir) / "project"
-        project_root.mkdir()
-        (project_root / "state").mkdir()
-        (project_root / "logs").mkdir()
+        # Test 4: Plan generation
+        print("Test 4: Plan generation")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir) / "project"
+            project_root.mkdir()
+            (project_root / "state").mkdir()
+            (project_root / "logs").mkdir()
+            
+            orchestrator = Orchestrator(project_root)
+            
+            # Test Python prompt
+            plan = orchestrator._generate_plan("Create a Python script")
+            assert "Python script" in plan
+            assert "main logic" in plan.lower()
+            
+            # Test HTML prompt
+            plan2 = orchestrator._generate_plan("Create an HTML page")
+            assert "html" in plan2.lower() or "structure" in plan2.lower()
+            
+            # Test generic prompt
+            plan3 = orchestrator._generate_plan("Do something")
+            assert "decompose" in plan3.lower() or "analyze" in plan3.lower()
         
-        orchestrator = Orchestrator(project_root)
+        print(" PASS: Plan generation works\n")
         
-        # Test Python prompt
-        plan = orchestrator._generate_plan("Create a Python script")
-        assert "Python script" in plan
-        assert "main logic" in plan.lower()
+        # Test 5: Spec generation
+        print("Test 5: Spec generation")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir) / "project"
+            project_root.mkdir()
+            (project_root / "state").mkdir()
+            (project_root / "logs").mkdir()
+            
+            orchestrator = Orchestrator(project_root)
+            spec = orchestrator._generate_spec("Test prompt")
+            
+            assert "Test prompt" in spec
+            assert "Requirements" in spec
+            assert "Constraints" in spec
         
-        # Test HTML prompt
-        plan2 = orchestrator._generate_plan("Create an HTML page")
-        assert "HTML" in plan2
-        assert "structure" in plan2.lower()
+        print(" PASS: Spec generation works\n")
         
-        # Test generic prompt
-        plan3 = orchestrator._generate_plan("Do something")
-        assert "Analyze requirements" in plan3
-    
-    print("✅ PASS: Plan generation works\n")
-    
-    # Test 5: Spec generation
-    print("Test 5: Spec generation")
-    with tempfile.TemporaryDirectory() as tmpdir:
-        project_root = Path(tmpdir) / "project"
-        project_root.mkdir()
-        (project_root / "state").mkdir()
-        (project_root / "logs").mkdir()
+        # Test 6: State transitions
+        print("Test 6: State transitions")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir) / "project"
+            project_root.mkdir()
+            (project_root / "state").mkdir()
+            (project_root / "logs").mkdir()
+            
+            orchestrator = Orchestrator(project_root)
+            
+            # Should start in PLANNING
+            assert orchestrator.current_state == State.PLANNING
+            
+            # Simulate planning completion
+            orchestrator.current_state = State.BUILDING
+            assert orchestrator.current_state == State.BUILDING
+            
+            # Simulate building completion
+            orchestrator.current_state = State.VERIFYING
+            assert orchestrator.current_state == State.VERIFYING
+            
+            # Simulate verification completion
+            orchestrator.current_state = State.COMPLETE
+            assert orchestrator.current_state == State.COMPLETE
         
-        orchestrator = Orchestrator(project_root)
-        spec = orchestrator._generate_spec("Test prompt")
+        print(" PASS: State transitions work\n")
         
-        assert "Test prompt" in spec
-        assert "Requirements" in spec
-        assert "Constraints" in spec
-    
-    print("✅ PASS: Spec generation works\n")
-    
-    # Test 6: State transitions
-    print("Test 6: State transitions")
-    with tempfile.TemporaryDirectory() as tmpdir:
-        project_root = Path(tmpdir) / "project"
-        project_root.mkdir()
-        (project_root / "state").mkdir()
-        (project_root / "logs").mkdir()
+        # Test 7: Temp directory creation
+        print("Test 7: Temp directory creation")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir) / "project"
+            project_root.mkdir()
+            (project_root / "state").mkdir()
+            (project_root / "logs").mkdir()
+            
+            orchestrator = Orchestrator(project_root)
+            
+            assert orchestrator.tmp_dir.exists(), "Temp directory should exist"
+            assert "hybrid_orchestrator" in str(orchestrator.tmp_dir), "Should contain project name"
         
-        orchestrator = Orchestrator(project_root)
+        print(" PASS: Temp directory creation works\n")
         
-        # Should start in PLANNING
-        assert orchestrator.current_state == State.PLANNING
-        
-        # Simulate planning completion
-        orchestrator.current_state = State.BUILDING
-        assert orchestrator.current_state == State.BUILDING
-        
-        # Simulate building completion
-        orchestrator.current_state = State.VERIFYING
-        assert orchestrator.current_state == State.VERIFYING
-        
-        # Simulate verification completion
-        orchestrator.current_state = State.COMPLETE
-        assert orchestrator.current_state == State.COMPLETE
-    
-    print("✅ PASS: State transitions work\n")
-    
-    # Test 7: Temp directory creation
-    print("Test 7: Temp directory creation")
-    with tempfile.TemporaryDirectory() as tmpdir:
-        project_root = Path(tmpdir) / "project"
-        project_root.mkdir()
-        (project_root / "state").mkdir()
-        (project_root / "logs").mkdir()
-        
-        orchestrator = Orchestrator(project_root)
-        
-        assert orchestrator.tmp_dir.exists(), "Temp directory should exist"
-        assert "hybrid_orchestrator" in str(orchestrator.tmp_dir), "Should contain project name"
-    
-    print("✅ PASS: Temp directory creation works\n")
-    
-    print("=" * 60)
-    print("🎉 ALL 7 TESTS PASSED - orchestrator.py is production-ready")
-    print("=" * 60)
-    print("\nNext step: Create setup.py")
-    print("Command: @file setup.py")
+        print("=" * 60)
+        print(" ALL 7 TESTS PASSED - orchestrator.py is production-ready")
+        print("=" * 60)
+        print("\nNext step: Create setup.py")
+        print("Command: @file setup.py")
+

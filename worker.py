@@ -22,6 +22,7 @@ WINDOWS-SPECIFIC CONSIDERATIONS:
 """
 
 import os
+import sys
 import subprocess
 import tempfile
 import sqlite3
@@ -58,7 +59,7 @@ class McpClient:
             response.raise_for_status()
             print(f"[MCP] Created branch: {sanitized_name}")
         except requests.exceptions.RequestException as e:
-            print(f"⚠️ MCP create_branch failed: {e}")
+            print(f" MCP create_branch failed: {e}")
             # Fallback to subprocess Git
             self._create_branch_subprocess(sanitized_name)
     
@@ -74,7 +75,7 @@ class McpClient:
             response.raise_for_status()
             print(f"[MCP] Switched to branch: {sanitized_name}")
         except requests.exceptions.RequestException as e:
-            print(f"⚠️ MCP switch_branch failed: {e}")
+            print(f" MCP switch_branch failed: {e}")
             # Fallback to subprocess Git
             self._switch_branch_subprocess(sanitized_name)
     
@@ -89,7 +90,7 @@ class McpClient:
             response.raise_for_status()
             print(f"[MCP] Committed: {message}")
         except requests.exceptions.RequestException as e:
-            print(f"⚠️ MCP commit failed: {e}")
+            print(f" MCP commit failed: {e}")
             # Fallback to subprocess Git
             self._commit_subprocess(message)
     
@@ -119,7 +120,7 @@ class McpClient:
             )
             print(f"[Git] Created branch via subprocess: {name}")
         except subprocess.SubprocessError as e:
-            print(f"❌ Git branch creation failed: {e}")
+            print(f" Git branch creation failed: {e}")
             raise
     
     def _switch_branch_subprocess(self, name: str) -> None:
@@ -136,7 +137,7 @@ class McpClient:
             )
             print(f"[Git] Switched to branch via subprocess: {name}")
         except subprocess.SubprocessError as e:
-            print(f"❌ Git checkout failed: {e}")
+            print(f" Git checkout failed: {e}")
             raise
     
     def _commit_subprocess(self, message: str) -> None:
@@ -162,7 +163,7 @@ class McpClient:
             )
             print(f"[Git] Committed via subprocess: {message}")
         except subprocess.SubprocessError as e:
-            print(f"❌ Git commit failed: {e}")
+            print(f" Git commit failed: {e}")
             raise
 
 
@@ -186,7 +187,7 @@ def execute_task(
     Returns:
         bool: True if task succeeded, False otherwise
     """
-    print(f"🔧 Executing task in {complexity_mode} mode")
+    print(f" Executing task in {complexity_mode} mode")
     
     # Setup tmp directory
     if tmp_dir is None:
@@ -231,24 +232,24 @@ def execute_task(
             with open(code_path, "w", encoding="utf-8-sig") as f:
                 f.write(code)
             
-            print(f"💾 Code saved to: {code_path}")
+            print(f" Code saved to: {code_path}")
             
             # Run BIST (Built-In Self-Test)
             if _run_bist(code_path):
-                print(f"✅ BIST passed. Code saved to {code_path}")
+                print(f" BIST passed. Code saved to {code_path}")
                 mcp_client.commit(f"Auto-commit task {task_id}")
                 return True
             else:
-                print(f"❌ BIST failed on attempt {attempt + 1}")
+                print(f" BIST failed on attempt {attempt + 1}")
                 _log_ai_conversation("SYSTEM", f"BIST failed for {code_path}. Retrying...")
                 
                 # Check for loop detection
                 if _detect_loop(code, attempt):
-                    print("🔄 Loop detected. Escalating temperature...")
+                    print(" Loop detected. Escalating temperature...")
                     continue  # Retry with higher temperature
                 
                 if attempt >= 2:  # Max 3 attempts (0, 1, 2)
-                    print("⚠️ Max attempts reached. Task failed.")
+                    print(" Max attempts reached. Task failed.")
                     break
         
         return False
@@ -260,7 +261,7 @@ def execute_task(
             mcp_process.wait(timeout=5)
         except subprocess.TimeoutExpired:
             mcp_process.kill()
-        print("🧹 MCP server terminated")
+        print(" MCP server terminated")
 
 
 def _log_ai_conversation(role: str, message: str) -> None:
@@ -287,7 +288,7 @@ def _log_ai_conversation(role: str, message: str) -> None:
             )
             conn.commit()
     except Exception as e:
-        print(f"⚠️ Worker failed to log conversation: {e}")
+        print(f" Worker failed to log conversation: {e}")
 
 
 def _launch_mcp_git_server() -> subprocess.Popen:
@@ -308,7 +309,7 @@ def _launch_mcp_git_server() -> subprocess.Popen:
             creationflags=subprocess.CREATE_NO_WINDOW
         )
     except FileNotFoundError:
-        print("⚠️ mcp-server-git not found. MCP operations will use subprocess fallback.")
+        print(" mcp-server-git not found. MCP operations will use subprocess fallback.")
         # Return dummy process that sleeps
         return subprocess.Popen(
             ["python", "-c", "import time; time.sleep(3600)"],
@@ -402,10 +403,10 @@ def _run_bist(code_path: Path) -> bool:
         return success
         
     except subprocess.TimeoutExpired:
-        print("⚠️ BIST timeout (30s)")
+        print(" BIST timeout (30s)")
         return False
     except subprocess.SubprocessError as e:
-        print(f"⚠️ BIST error: {e}")
+        print(f" BIST error: {e}")
         return False
 
 
@@ -439,7 +440,7 @@ def _detect_loop(code: str, attempt: int) -> bool:
 
 # TEST SUITE - MUST PASS BEFORE PROCEEDING
 if __name__ == "__main__":
-    print("🧪 Running worker.py comprehensive tests...\\n")
+    print(" Running worker.py comprehensive tests...\\n")
     
     import tempfile
     
@@ -458,7 +459,7 @@ if __name__ == "__main__":
         result = client._sanitize_branch_name(input_name)
         assert result == expected, f"Expected '{expected}', got '{result}'"
     
-    print("✅ PASS: Branch sanitization works\\n")
+    print(" PASS: Branch sanitization works\\n")
     
     # Test 2: Temperature escalation
     print("Test 2: Temperature escalation")
@@ -466,7 +467,7 @@ if __name__ == "__main__":
     assert _get_temperature_for_attempt(1) == 1.0, "Attempt 2: 1.0"
     assert _get_temperature_for_attempt(2) == 1.3, "Attempt 3: 1.3"
     assert _get_temperature_for_attempt(3) == 1.3, "Attempt 4+: capped at 1.3"
-    print("✅ PASS: Temperature escalation works\\n")
+    print(" PASS: Temperature escalation works\\n")
     
     # Test 3: Code generation produces valid Python
     print("Test 3: Code generation produces valid Python")
@@ -474,7 +475,7 @@ if __name__ == "__main__":
     assert code.startswith("#!/usr/bin/env python3"), "Should start with shebang"
     assert "def main():" in code, "Should contain main function"
     assert 'if __name__ == "__main__":' in code, "Should have main guard"
-    print("✅ PASS: Code generation works\\n")
+    print(" PASS: Code generation works\\n")
     
     # Test 4: BIST execution
     print("Test 4: BIST execution")
@@ -494,7 +495,7 @@ if __name__ == "__main__":
         result = _run_bist(test_file)
         assert result == True, "BIST should pass for valid code"
     
-    print("✅ PASS: BIST execution works\\n")
+    print(" PASS: BIST execution works\\n")
     
     # Test 5: Loop detection
     print("Test 5: Loop detection")
@@ -511,7 +512,7 @@ def main():
     assert _detect_loop(normal_code, 2) == False, "Should not detect normal code as loop"
     assert _detect_loop(normal_code, 0) == False, "Should not check on attempt 0"
     
-    print("✅ PASS: Loop detection works\\n")
+    print(" PASS: Loop detection works\\n")
     
     # Test 6: Task ID generation
     print("Test 6: Task ID generation")
@@ -520,7 +521,7 @@ def main():
     assert isinstance(task_id1, str), "Should return string"
     assert len(task_id1) == 8, "Should be 8 characters"
     assert task_id1 != task_id2, "Should generate unique IDs"
-    print("✅ PASS: Task ID generation works\\n")
+    print(" PASS: Task ID generation works\\n")
     
     # Test 7: AI conversation logging
     print("Test 7: AI conversation logging")
@@ -562,14 +563,14 @@ def main():
             conn.close()
             
             assert count > 0, "Should log conversation"
-            print("✅ logging validated in temp environment")
+            print(" logging validated in temp environment")
         finally:
             os.chdir(old_cwd)
     
-    print("✅ PASS: AI conversation logging works\\n")
+    print(" PASS: AI conversation logging works\\n")
     
     print("=" * 60)
-    print("🎉 ALL 7 TESTS PASSED - worker.py is production-ready")
+    print(" ALL 7 TESTS PASSED - worker.py is production-ready")
     print("=" * 60)
     print("\\nNext step: Create orchestrator.py")
     print("Command: @file orchestrator.py")

@@ -1,2 +1,2 @@
 ﻿# Fast Mode Spec
-Prompt: write a test file in /tmp/test.txt with contents "ok"
+Prompt: Create a test file
