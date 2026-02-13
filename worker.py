@@ -245,12 +245,23 @@ def execute_task(
             
             if all_bist_success and saved_files:
                 print(f" All {len(saved_files)} files passed BIST.")
+                
+                # Create timestamped directory: tests/YYYYMMMdd/HHMMSS_taskid/
+                from datetime import datetime
+                timestamp = datetime.now()
+                date_str = timestamp.strftime("%Y%b%d")
+                time_str = timestamp.strftime("%H%M%S")
+                target_dir = Path.cwd() / "tests" / date_str / f"{time_str}_{task_id}"
+                target_dir.mkdir(parents=True, exist_ok=True)
+                
                 for tmp_path, filename in saved_files:
-                    final_path = Path.cwd() / filename
+                    final_path = target_dir / filename
                     with open(tmp_path, "r", encoding="utf-8-sig") as src, open(final_path, "w", encoding="utf-8-sig") as dst:
                         dst.write(src.read())
-                    print(f" Persisted: {filename}")
+                    print(f" Persisted: {final_path}")
                 
+                # Commit from the new directory? git add . handles repo root.
+                # If we move files to tests/..., we need to add THAT path.
                 mcp_client.commit(f"Auto-commit task {task_id}")
                 return True
             else:
