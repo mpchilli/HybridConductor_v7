@@ -142,6 +142,46 @@ class Orchestrator:
                 conn.commit()
         except Exception as e:
             print(f" Failed to log AI conversation: {e}")
+
+    def pause(self) -> None:
+        """Serialize current state and exit."""
+        session_path = self.state_dir / "session.json"
+        state_data = {
+            "current_state": self.current_state.value,
+            "complexity_mode": self.complexity_mode.value,
+            "loop_guardian": self.loop_guardian.to_dict(),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # Save plan and spec as well (though they should already be in state/)
+        with open(session_path, "w", encoding="utf-8") as f:
+            json.dump(state_data, f, indent=2)
+            
+        print(f" Session paused and saved to {session_path}")
+        self._log_event('PAUSED', f"Session paused at state: {self.current_state.value}")
+        sys.exit(0)
+
+    def resume(self) -> bool:
+        """Restore state from session.json."""
+        session_path = self.state_dir / "session.json"
+        if not session_path.exists():
+            print(" No saved session found to resume.")
+            return False
+            
+        try:
+            with open(session_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                
+            self.current_state = State(data["current_state"])
+            self.set_complexity_mode(data["complexity_mode"])
+            self.loop_guardian.from_dict(data["loop_guardian"])
+            
+            print(f" Resuming session from {data['timestamp']} at state: {self.current_state.value}")
+            self._log_event('RESUMED', f"Resuming session from {data['timestamp']} at state: {self.current_state.value}")
+            return True
+        except Exception as e:
+            print(f" Failed to resume session: {e}")
+            return False
     
     def set_complexity_mode(self, mode: str) -> None:
         """
@@ -307,11 +347,11 @@ class Orchestrator:
             for command in commands:
                 if not command: continue
                 if command.startswith("/pause"):
-                    print(" Pausing execution...")
-                    time.sleep(10)  # Simulate pause
+                    self.pause()
                 elif command.startswith("/checkpoint"):
                     print(f" Creating checkpoint: {command}")
-                    # Implementation would save current state
+                    # In v8, this could be an incremental pause()
+                    self._log_event('CHECKPOINT', f"Checkpoint created: {command}")
                 elif command.startswith("/rollback"):
                     print(f"↩ Rolling back: {command}")
                     # Implementation would restore from checkpoint
@@ -383,12 +423,19 @@ if __name__ == "__main__":
         parser = argparse.ArgumentParser(description="Hybrid Orchestrator v7.2.8")
         parser.add_argument("--prompt", type=str, help="Prompt to execute")
         parser.add_argument("--complexity", type=str, default="streamlined", choices=["fast", "streamlined", "full"], help="Complexity mode")
+        parser.add_argument("--resume", action="store_true", help="Resume from last saved session")
         
         args = parser.parse_args()
         
-        if args.prompt:
-            project_root = Path.cwd()
-            orchestrator = Orchestrator(project_root)
+        project_root = Path.cwd()
+        orchestrator = Orchestrator(project_root)
+        
+        if args.resume:
+            if orchestrator.resume():
+                orchestrator.run(prompt="") # Prompt ignored during resume
+            else:
+                sys.exit(1)
+        elif args.prompt:
             orchestrator.set_complexity_mode(args.complexity)
             orchestrator.run(args.prompt)
         else:

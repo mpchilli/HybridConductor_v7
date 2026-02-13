@@ -192,6 +192,25 @@ class LoopGuardian:
         self.hash_history = []
         logger.info("LoopGuardian state reset")
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize state for persistence."""
+        return {
+            "iteration_count": self.iteration_count,
+            "retry_count": self.retry_count,
+            "hash_history": self.hash_history,
+            "elapsed_time": time.monotonic() - self.start_time
+        }
+
+    def from_dict(self, data: Dict[str, Any]) -> None:
+        """Restore state from serialized data."""
+        self.iteration_count = data.get("iteration_count", 0)
+        self.retry_count = data.get("retry_count", 0)
+        self.hash_history = data.get("hash_history", [])
+        # Adjust start_time to account for already elapsed time
+        elapsed = data.get("elapsed_time", 0)
+        self.start_time = time.monotonic() - elapsed
+        logger.info(f"LoopGuardian state restored: {self.iteration_count} iterations, {self.retry_count} retries")
+
 
 def normalize_output(output: str) -> str:
     """
