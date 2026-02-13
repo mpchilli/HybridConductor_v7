@@ -1,0 +1,261 @@
+# Hybrid Conductor v7 → v8: Gap Analysis & Improvement Plan
+
+## Executive Summary
+
+Hybrid Conductor v7.2.8 scores **181/213 (85%)** on the Ralph Loop Ecosystem Matrix. The top competitor, `ralph-orchestrator`, scores **195/213 (92%)**. This plan targets the **5 zero-score gaps** and **2 partial-score weaknesses** to raise HC to **~205/213 (96%)**, overtaking ralph-orch as the ecosystem leader.
+
+> [!IMPORTANT]
+> Each feature is designed as an **independent Git branch** per project convention (`task-{uuid}` pattern). Every feature is committed and synced before the next begins.
+
+---
+
+## Gap Analysis Summary
+
+| Gap | Current Score | Potential Score | Delta | Priority |
+|-----|:---:|:---:|:---:|:---:|
+| Resume/Pause | 0/6 | 6/6 | +6 | 🔴 High |
+| Config UI (Partial→Full) | 2/6 | 6/6 | +4 | 🟠 Medium |
+| Multi-Backend LLM | 0/6 | 6/6 | +6 | 🔴 High |
+| Background Tasks | 0/3 | 3/3 | +3 | 🟠 Medium |
+| Terminal UI (TUI) | 0/6 | 6/6 | +6 | 🟡 Low |
+| Maturity (Partial) | 2/6 | 6/6 | +4 | 🟠 Medium |
+| **Code Quality** | — | — | — | 🟠 Medium |
+| **TOTAL** | **181** | **~210** | **+29** | |
+
+---
+
+## Proposed Changes
+
+### Feature 1: Resume/Pause System
+
+**Scorecard impact**: 0 → 6 (+6 points, weight 2)
+**Best-in-class reference**: kranthik/Ralph (`/ralph:pause` → serialize iteration context → `/ralph:resume`)
+
+#### [MODIFY] [orchestrator.py](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/orchestrator.py)
+- Add `pause()` method: serializes `OrchestratorState` (current_state, iteration_count, complexity_mode, loop_guardian hash history, plan content) to `state/session.json`  
+- Add `resume()` class method: deserializes `state/session.json` and rebuilds [Orchestrator](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/orchestrator.py#56-374) from saved state
+- Modify [_process_inbox_commands()](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/orchestrator.py#297-323): `/pause` writes state then exits loop cleanly (currently just `time.sleep(10)`)
+- Add `--resume` CLI flag to `argparse` block
+
+#### [MODIFY] [loop_guardian.py](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/loop_guardian.py)
+- Add `to_dict()` and `from_dict()` methods on [LoopGuardian](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/loop_guardian.py#35-194) for JSON-safe serialization of hash history, iteration count, retry count, and timestamps
+
+#### [NEW] state/session.json (runtime artifact, gitignored)
+
+---
+
+### Feature 2: Config UI / Preset System
+
+**Scorecard impact**: 2 → 6 (+4 points, weight 2)
+**Best-in-class reference**: ralph-orchestrator (31 presets + `ralph.yml`)
+
+#### [MODIFY] [config/default.yml](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/config/default.yml)
+- Add `presets:` section with named profiles (e.g., `tdd`, [debug](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/orchestrator.py#281-296), `full-spec`, `quick-fix`)
+- Each preset overrides [complexity](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/orchestrator.py#146-162), `max_iterations`, `temperature_schedule`, [completion_promise](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/loop_guardian.py#139-158)
+
+#### [MODIFY] [presets/](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/presets/) (existing files are stubs)
+- Expand [fast_track.yml](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/presets/fast_track.yml), [streamlined.yml](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/presets/streamlined.yml), [full.yml](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/presets/full.yml) with full config overrides
+- Add new presets: `tdd.yml`, `debug.yml`, `refactor.yml`
+
+#### [MODIFY] [orchestrator.py](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/orchestrator.py)
+- Add `--preset` CLI flag that loads named preset YAML and merges over [default.yml](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/config/default.yml)
+- Add `_load_preset()` method
+
+#### [MODIFY] [backend/dashboard/app.py](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/backend/dashboard/app.py)
+- Add `/api/presets` GET endpoint listing available presets
+- Add `/api/config` GET/PUT endpoints for runtime config viewing/modification
+
+---
+
+### Feature 3: Multi-Backend LLM Provider
+
+**Scorecard impact**: 0 → 6 (+6 points, weight 2)
+**Best-in-class reference**: ralph-orchestrator (7 backends via `--backend` flag)
+
+#### [NEW] [llm_provider.py](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/llm_provider.py)
+- Abstract base class `LLMProvider` with [generate(prompt, temperature, max_tokens) -> str](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/cartographer.py#79-145)
+- Concrete implementations:
+  - `SimulatedProvider` (current mock behavior, extracted from `worker.py._generate_code()`)
+  - `GeminiProvider` (Google Gemini API via `google-generativeai`)
+  - `OpenAIProvider` (OpenAI/Azure API via `openai`)
+  - `OllamaProvider` (Local models via `ollama` REST API)
+- Factory function `create_provider(backend_name, config) -> LLMProvider`
+
+#### [MODIFY] [worker.py](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/worker.py)
+- Replace inline [_generate_code()](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/worker.py#362-430) mock with `provider.generate()` call
+- Accept `provider` parameter in [execute_task()](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/worker.py#171-284)
+
+#### [MODIFY] [orchestrator.py](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/orchestrator.py)
+- Add `--backend` CLI flag (choices: `simulated`, `gemini`, `openai`, `ollama`)
+- Instantiate provider in [__init__](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/loop_guardian.py#47-70) and pass to worker
+
+#### [MODIFY] [config/default.yml](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/config/default.yml)
+- Add `llm:` section with `backend`, `api_key_env_var`, `model`, `max_tokens`
+
+---
+
+### Feature 4: Background Tasks
+
+**Scorecard impact**: 0 → 3 (+3 points, weight 1)
+**Best-in-class reference**: self-command (`run_long_command` in detached tmux pane)
+
+#### [MODIFY] [orchestrator.py](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/orchestrator.py)
+- Add `--background` CLI flag
+- When set, fork orchestration to a detached subprocess using `subprocess.Popen` with `CREATE_NEW_PROCESS_GROUP` (Windows)
+- Write PID to `state/background.pid` for monitoring
+- Add `--status` flag that reads PID file and reports process state
+
+#### [MODIFY] [backend/dashboard/app.py](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/backend/dashboard/app.py)
+- Add `/api/background/status` endpoint reading `state/background.pid`
+
+---
+
+### Feature 5: Terminal UI (TUI)
+
+**Scorecard impact**: 0 → 6 (+6 points, weight 2)
+**Best-in-class reference**: ralph-orchestrator (Rust ratatui)
+
+#### [NEW] [tui.py](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/tui.py)
+- Uses `rich` library (`rich.live`, `rich.table`, `rich.panel`, `rich.progress`)
+- Real-time display: current state, iteration count, last hash, temperature, elapsed time
+- Log panel showing recent activity from [logs/activity.db](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/logs/activity.db)
+- Input bar for inline commands
+
+#### [MODIFY] [orchestrator.py](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/orchestrator.py)
+- Add `--tui` CLI flag that wraps execution in TUI renderer
+- TUI subscribes to same SQLite logging as web dashboard
+
+#### [MODIFY] [requirements.txt](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/requirements.txt)
+- Add `rich>=13.0`
+
+---
+
+### Feature 6: Maturity Improvements
+
+**Scorecard impact**: 2 → 6 (+4 points, weight 2)
+
+#### [NEW] [CHANGELOG.md](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/CHANGELOG.md)
+- Retroactive changelog from git history
+- Follow [Keep a Changelog](https://keepachangelog.com/) format
+
+#### [MODIFY] [requirements.txt](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/requirements.txt)
+- Pin all dependency versions (currently unpinned: `flask`, `flask-cors`, `pywebview`, `pyinstaller`)
+- Add missing runtime dependencies (`pyyaml`, `requests`)
+
+#### [NEW] [pyproject.toml](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/pyproject.toml)
+- Standard Python packaging metadata for future PyPI publishing
+
+---
+
+### Feature 7: Code Quality & Test Infrastructure
+
+**Scorecard impact**: indirect (reliability, maintainability)
+
+#### [MODIFY] [tests/](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/tests/)
+- Migrate inline `__main__` tests from [orchestrator.py](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/orchestrator.py) (7 tests) and [loop_guardian.py](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/loop_guardian.py) to proper `pytest` test files:
+  - `tests/test_orchestrator.py`
+  - `tests/test_loop_guardian.py`
+  - `tests/test_worker.py`
+  - `tests/test_context_fetcher.py`
+
+#### [NEW] [tests/conftest.py](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/tests/conftest.py)
+- Shared pytest fixtures (temp project directories, mock configs)
+
+#### [MODIFY] [requirements.txt](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/requirements.txt)
+- Add `pytest>=7.0` to dev dependencies
+
+---
+
+## User Review Required
+
+> [!WARNING]
+> **Multi-Backend LLM (Feature 3)** requires API keys to test non-simulated providers. The `SimulatedProvider` will work without keys, but to verify Gemini/OpenAI/Ollama integrations, you'll need:
+> - `GEMINI_API_KEY` for Gemini
+> - `OPENAI_API_KEY` for OpenAI
+> - A running Ollama instance for local models
+
+> [!IMPORTANT]
+> **Execution order matters.** Feature 7 (test infrastructure) should be built first as a foundation. Feature 6 (maturity) can run in parallel. Features 1-5 each get their own branch and are independently testable.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+Each feature will be tested via `pytest` from the project root:
+
+```powershell
+# After Feature 7 (test infrastructure) is built:
+cd c:\Users\ukchim01\Downloads\Ai Tools\HybridConductor_v7
+python -m pytest tests/ -v --tb=short
+```
+
+**Feature-specific test commands:**
+
+| Feature | Test Command | What it Verifies |
+|---------|-------------|-----------------|
+| 1 (Resume/Pause) | `python -m pytest tests/test_orchestrator.py -k "resume or pause" -v` | State serialization round-trip, clean pause/resume cycle |
+| 2 (Config/Presets) | `python -m pytest tests/test_orchestrator.py -k "preset or config" -v` | Preset loading, config merging, CLI `--preset` flag |
+| 3 (Multi-Backend) | `python -m pytest tests/test_llm_provider.py -v` | Provider interface contract, simulated provider, factory selection |
+| 4 (Background) | `python -m pytest tests/test_orchestrator.py -k "background" -v` | PID file creation, status check, subprocess lifecycle |
+| 5 (TUI) | `python -m pytest tests/test_tui.py -v` | TUI renders without crashing, shows correct state |
+| 6 (Maturity) | `pip install -e . && pip show hybrid-conductor` | Package installs cleanly, metadata correct |
+| 7 (Code Quality) | `python -m pytest tests/ -v` | All migrated tests pass under pytest |
+
+**Existing dashboard tests (unchanged):**
+
+```powershell
+# Pytest backend tests:
+cd c:\Users\ukchim01\Downloads\Ai Tools\HybridConductor_v7\backend
+python -m pytest dashboard/test_app.py -v
+
+# Playwright UI tests:
+cd c:\Users\ukchim01\Downloads\Ai Tools\HybridConductor_v7\backend
+npx playwright test
+```
+
+### Manual Verification
+
+1. **Resume/Pause** — Start a task with `python orchestrator.py --prompt "Hello" --complexity fast`, write `/pause` to `state/inbox.md`, verify `state/session.json` is created. Then run `python orchestrator.py --resume` and verify it continues from saved state.
+
+2. **Dashboard Config** — Launch dashboard with `python start_app.py`, open `http://127.0.0.1:5000`, navigate to Settings, verify preset dropdown populates and changes apply.
+
+3. **TUI** — Run `python orchestrator.py --prompt "Hello" --complexity fast --tui` and verify live-updating terminal display with iteration progress.
+
+### Documentation
+
+Every action, test result, and outcome will be appended to [docs/lessons_learnt.md](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/docs/lessons_learnt.md) with timestamps and pass/fail status.
+
+---
+
+## Execution Workflow
+
+For each of the 7 features:
+
+1. **Commit current state** — `git add . && git commit -m "checkpoint: before feature-N"`
+2. **Create feature branch** — `git checkout -b feature/feature-name`
+3. **Implement** — Break into sub-tasks as needed
+4. **Install deps** — `pip install` any new requirements
+5. **Test headless** — `python -m pytest tests/ -v`
+6. **Test dashboard** — `python start_app.py` + manual verification
+7. **Document** — Append results to [docs/lessons_learnt.md](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/docs/lessons_learnt.md)
+8. **Commit + push** — `git add . && git commit -m "feat: feature-name"`
+9. **Merge to readme-update** — `git checkout readme-update && git merge feature/feature-name`
+
+### Recommended Execution Order
+
+```mermaid
+graph TD
+    F7[Feature 7: Test Infrastructure] --> F1[Feature 1: Resume/Pause]
+    F7 --> F2[Feature 2: Config/Presets]
+    F7 --> F3[Feature 3: Multi-Backend]
+    F7 --> F4[Feature 4: Background Tasks]
+    F7 --> F5[Feature 5: Terminal UI]
+    F6[Feature 6: Maturity] --> DONE[Scorecard Update]
+    F1 --> DONE
+    F2 --> DONE
+    F3 --> DONE
+    F4 --> DONE
+    F5 --> DONE
+```
