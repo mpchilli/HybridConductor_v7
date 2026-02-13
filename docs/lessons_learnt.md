@@ -27,6 +27,11 @@
 - **Why**: The original simulation template included this string, but subsequent "LLM" simulations (like "Hello World") used more realistic project-specific output.
 - **Fix**: Broadened BIST success to depend primarily on `returncode == 0` (script executed without error).
 
+### Nested F-String Escaping
+- **Issue**: `SyntaxError` in `worker.py` when generating code with f-strings.
+- **Why**: The outer simulation `f-string` was trying to interpolate `{variable}` blocks intended for the *inner* generated code.
+- **Fix**: Escaped braces in simulation templates (e.g., `{{variable}}`) to ensure they are passed as literals to the generated file.
+
 ## 3. Python Development Pitfalls
 
 ### Missing Standard Imports

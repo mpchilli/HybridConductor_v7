@@ -1,2 +1,2 @@
 ﻿# Fast Mode Plan
-- [ ] Execute: Create a hello world python script named hello.py
+- [ ] Execute: Create math_utils.py with add() and main.py using it

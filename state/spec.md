@@ -1,2 +1,2 @@
 ﻿# Fast Mode Spec
-Prompt: Create a hello world python script named hello.py
+Prompt: Create math_utils.py with add() and main.py using it
