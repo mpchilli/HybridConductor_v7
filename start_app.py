@@ -19,6 +19,8 @@ def is_port_open(host, port):
 
 def main():
     print("🚀 Initializing Hybrid Orchestrator System...")
+    print(f"🐍 Python Executable: {sys.executable}")
+    print(f"📂 Current Working Directory: {Path.cwd()}")
     
     # 1. Start Dashboard Server
     print(f"📡 Launching Dashboard on {HOST}:{PORT}...")
@@ -26,11 +28,13 @@ def main():
     cmd = [sys.executable, str(DASHBOARD_SCRIPT)]
     
     try:
+        # Start process
+        # We redirect stderr to stdout to see errors in the console
         process = subprocess.Popen(
             cmd,
             cwd=str(Path.cwd()),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            # stdout=subprocess.DEVNULL, # Commented out for debugging
+            # stderr=subprocess.DEVNULL  # Commented out for debugging
         )
         
         # 2. Wait for Server Ready
