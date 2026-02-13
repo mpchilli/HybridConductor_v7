@@ -1,0 +1,70 @@
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant D as Dashboard<br/>(Flask UI)
+    participant O as Orchestrator<br/>(State Machine)
+    participant W as Worker<br/>(Task Executor)
+    participant S as System Layer<br/>(Git/MCP/FS/DB)
+
+    Note over U,S: PHASE 1: CONFIGURATION & PLANNING
+    U->>D: Set prompt + Complexity Mode<br/>(FAST/STREAMLINED/FULL)
+    D->>S: Write state/spec.md
+    U->>D: Click "Start Task"
+    D->>O: Trigger Execution<br/>(CLI/API call)
+    
+    O->>S: Generate Codebase Map<br/>(Cartographer → codesum/L0)
+    alt Mode ≠ FAST
+        O->>S: Fetch Context<br/>(Openground L3 Semantic Search)
+        O->>S: Write state/plan.md
+        O->>D: Request Approval
+        D->>U: Show Plan UI
+        U->>D: Approve Plan
+        D->>O: Approval Signal
+    end
+
+    Note over U,S: PHASE 2: BUILDING (Isolated Execution)
+    O->>W: Execute Task<br/>(plan + context)
+    activate W
+    W->>S: Start MCP Git Server<br/>(localhost:8080)
+    W->>S: Create Isolated Branch<br/>(task-xyz, sanitized name)
+    
+    loop BIST Cycle (Max Iterations)
+        W->>S: Fetch Task Context<br/>(Openground → Regex Fallback)
+        W->>W: Generate Code<br/>(LLM @ temperature T)
+        W->>S: Atomic File Write<br/>(UTF-8+BOM, retry on lock)
+        W->>S: Run BIST<br/>(Built-In Self-Test)
+        
+        alt BIST Passed
+            W->>S: Git Commit via MCP
+            W-->>O: Success Signal
+            deactivate W
+        else BIST Failed
+            W->>W: Loop Detection<br/>(Normalize → SHA-256 Hash Check)
+            alt Loop Detected
+                W->>W: Escalate Temperature<br/>(T+0.3, max 1.3)
+            end
+            Note over W: Retry with higher creativity
+        end
+    end
+
+    Note over U,S: PHASE 3: VERIFICATION & STEERING
+    alt Task Success
+        O->>O: State = VERIFYING
+        O->>S: Run Integration Tests
+        O->>O: State = COMPLETE
+    else Task Failed
+        O->>O: State = DEBUGGING
+        O->>O: Global Retry Logic<br/>(Max 3 attempts)
+    end
+    
+    par Mid-Flight Steering (Async)
+        U->>D: Send Command<br/>(/pause, /checkpoint)
+        D->>S: Write state/inbox.md<br/>(Sanitized Input)
+        O->>S: Poll inbox.md<br/>(Every 5s)
+        O->>O: Process Command<br/>(Pause/Checkpoint/Rollback)
+    end
+    
+    O->>D: Update Status
+    D->>U: Real-Time Logs via SSE<br/>(Execution + AI Conversation)
+    
+    Note over U,S: ALL OPERATIONS: Windows-Native, User-Space Only, No Admin Rights Required

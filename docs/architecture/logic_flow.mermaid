@@ -1,0 +1,44 @@
+flowchart TD
+    A[Start: Raw Code Output<br/>from LLM Generation] --> B[Normalize Output]
+    
+    subgraph "Normalization Steps" [Normalization Steps (Critical for Cross-Platform Determinism)]
+        B1["_STRIP TIMESTAMPS_<br/>Regex: \\d{4}-\\d{2}-\\d{2}[T\\s]\\d{2}:\\d{2}:\\d{2}[\\.\\dZ]*<br/>→ [TIMESTAMP]"]
+        B2["_STRIP HEX ADDRESSES_<br/>Regex: 0x[0-9a-fA-F]+<br/>→ [HEX_ADDR]"]
+        B3["_STRIP PATHS_<br/>Regex: [a-zA-Z]:\\\\[\\\\\\w\\s\\-\\.]+|/([\\w\\-\\.]+/)+[\\w\\-\\.]+<br/>→ [PATH]"]
+        B4["_STRIP ITERATION COUNTERS_<br/>Regex: iteration \\d+<br/>→ iteration [N]"]
+    end
+    
+    B --> B1
+    B1 --> B2
+    B2 --> B3
+    B3 --> B4
+    B4 --> C[Compute SHA-256 Hash<br/>of Normalized Output]
+    
+    C --> D{Hash Exists in<br/>Last 3 Iterations?}
+    D -- YES --> E["⚠️ LOOP DETECTED<br/>Identical Logic Pattern"]
+    D -- NO --> F["✅ NO LOOP<br/>Add Hash to History"]
+    
+    E --> G[Escalation Protocol]
+    F --> H[Continue Execution]
+    
+    subgraph "Escalation Protocol" [Escalation Protocol (Linear Retry Strategy)]
+        G1["Attempt 1: Base Temp (0.7)"]
+        G2["Attempt 2: +0.3 Temp (1.0)"]
+        G3["Attempt 3: +0.6 Temp (1.3)"]
+        G4["Attempt 4+: Terminate<br/>(Max Retries Exceeded)"]
+    end
+    
+    G --> G1
+    G1 --> G2
+    G2 --> G3
+    G3 --> G4
+    
+    G4 --> I[Move to DEBUGGING State]
+    H --> J[Proceed to BIST Verification]
+    
+    classDef critical fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef safe fill:#e8f5e9,stroke:#2e7d32
+    classDef warning fill:#ffebee,stroke:#c62828
+    class B1,B2,B3,B4 critical
+    class F,J safe
+    class E,G4 warning

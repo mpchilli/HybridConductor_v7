@@ -1,0 +1,132 @@
+sequenceDiagram
+    participant User
+    participant Dash as 🖥️ Dashboard
+    participant Orch as 🧠 Orchestrator
+    participant LG as 🛡️ LoopGuardian
+    participant CF as 🔍 ContextFetcher
+    participant Work as 👷 Worker
+    participant MCP as 📡 MCP Git Server
+    participant Sys as 💾 System/Git
+    participant DB as 📊 Activity DB
+
+    Note over User,Sys: Initialization Phase
+    User->>Dash: Set Prompt & Complexity Mode<br/>(FAST/STREAMLINED/FULL)
+    Dash->>DB: Write state/spec.md
+    Dash->>Orch: Start Orchestration
+    Orch->>LG: Initialize LoopGuardian<br/>(max_iter=25, max_time=60min)
+    Orch->>CF: Generate Codebase Map<br/>(codesum or fallback walker)
+    CF->>Sys: Run codesum CLI
+    alt codesum available
+        Sys-->>CF: AST-based map
+    else codesum unavailable
+        CF->>CF: Generate basic file structure
+        CF-->>CF: Basic map
+    end
+    CF->>Orch: Save codebase_map.md
+    Orch->>Orch: Load Configuration<br/>(default.yml)
+
+    Note over Orch,Sys: Planning Phase
+    alt Complexity Mode = FAST
+        Orch->>Orch: Skip Planning<br/>Generate minimal artifacts
+        Orch->>DB: Write state/plan.md
+    else Complexity Mode = STREAMLINED/FULL
+        Orch->>CF: Fetch Context for Planning
+        CF->>Sys: openground search "planning context"
+        alt Openground available
+            Sys-->>CF: Semantic results
+        else Openground unavailable
+            CF->>CF: Regex fallback search
+            CF-->>CF: Regex results
+        end
+        CF-->>Orch: Planning context
+        Orch->>Orch: Generate spec.md & plan.md<br/>(Conductor pattern)
+        Orch->>DB: Write state/spec.md
+        Orch->>DB: Write state/plan.md
+        Orch->>User: Request Approval
+        User->>Orch: Approve
+    end
+
+    Note over Orch,Work: Building Phase
+    Orch->>Work: Execute Task<br/>(plan + context + complexity_mode)
+    activate Work
+    Work->>MCP: Launch MCP Git Server<br/>(127.0.0.1:8080)
+    Work->>MCP: Create Isolated Branch<br/>(task-{uuid})
+    Work->>MCP: Switch to Branch
+    Work->>MCP: Checkout branch
+    
+    loop BIST Cycle (Max Iterations)
+        Work->>CF: Fetch Task-Specific Context
+        CF->>Sys: openground search "task query"
+        CF-->>Work: Relevant context
+        
+        Work->>Work: Generate Code<br/>(LLM with temperature)
+        Work->>DB: Log AI Conversation<br/>(prompt + response)
+        
+        Work->>Sys: Write task_file.py<br/>(atomic write, UTF-8+BOM)
+        
+        Work->>Sys: Run BIST<br/>(Built-In Self-Test)
+        alt BIST Passed
+            Work->>MCP: Git Commit<br/>(Auto-commit task {uuid})
+            Work-->>Orch: Success
+            break
+        else BIST Failed
+            Work->>LG: Check Loop Detection<br/>(normalize_output + hash)
+            LG-->>Work: Loop status
+            
+            alt Loop Detected
+                Work->>Work: Escalate Temperature<br/>(0.7 → 1.0 → 1.3)
+            else No Loop
+                Work->>LG: Increment Iteration
+            end
+            
+            LG->>LG: Check Termination Limits<br/>(iterations + time)
+            alt Should Terminate
+                Work-->>Orch: Failed
+                break
+            end
+        end
+    end
+    deactivate Work
+
+    Note over Orch,Sys: Verification & Completion
+    alt Task Success
+        Orch->>Orch: State = VERIFYING
+        Orch->>Sys: Run Integration Tests<br/>(lint, typecheck, runtime)
+        alt Verification Passed
+            Orch->>Orch: State = COMPLETE
+            Orch->>User: Task Completed Successfully
+        else Verification Failed
+            Orch->>Orch: State = DEBUGGING
+            Orch->>LG: Get Retry Count
+            LG-->>Orch: retry_count
+            
+            alt retry_count < 3
+                Orch->>Orch: Escalate Temperature
+                Orch->>Work: Retry Task
+            else Max Retries Exceeded
+                Orch->>Orch: State = FAILED
+                Orch->>User: Task Failed After Max Retries
+            end
+        end
+    else Task Failed
+        Orch->>Orch: State = FAILED
+        Orch->>User: Task Execution Failed
+    end
+
+    Note over User,Orch: Mid-Flight Control (Async Polling)
+    par Poll inbox.md every 5s
+        User->>Dash: /pause or /checkpoint<br/>or /rollback
+        Dash->>DB: Write to state/inbox.md
+        Orch->>DB: Read inbox.md
+        alt /pause command
+            Orch->>Orch: PAUSE Execution
+            Orch->>User: Execution Paused
+        else /checkpoint command
+            Orch->>DB: Save Checkpoint<br/>(current state snapshot)
+            Orch->>User: Checkpoint Created
+        else /rollback command
+            Orch->>DB: Restore from Checkpoint
+            Orch->>User: Rollback Completed
+        end
+    and Continue Normal Execution
+    end

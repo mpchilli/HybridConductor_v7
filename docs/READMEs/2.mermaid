@@ -1,0 +1,134 @@
+flowchart TD
+    Start([User Executes<br/>python orchestrator.py]) --> Init[Initialize Orchestrator]
+    
+    Init --> LoadConfig[Load Configuration<br/>config/default.yml]
+    LoadConfig --> InitLG[Initialize LoopGuardian<br/>max_iterations=25<br/>max_time_minutes=60]
+    InitLG --> InitDB[Initialize Activity DB<br/>logs/activity.db]
+    
+    InitDB --> CheckMap{codebase_map.md<br/>exists?}
+    
+    CheckMap -- No --> Cartographer[Run Cartographer<br/>generate_codebase_map()]
+    Cartographer --> TryCodesum[Try: codesum CLI]
+    TryCodesum --> CodesumSuccess{Success?}
+    CodesumSuccess -- Yes --> SaveMap1[Save codebase_map.md<br/>with AST analysis]
+    CodesumSuccess -- No --> FallbackWalker[Generate Basic Map<br/>_generate_basic_map()]
+    FallbackWalker --> SaveMap2[Save codebase_map.md<br/>with file structure]
+    
+    CheckMap -- Yes --> SkipMap[Skip Map Generation]
+    
+    SaveMap1 --> SetComplexity
+    SaveMap2 --> SetComplexity
+    SkipMap --> SetComplexity
+    
+    SetComplexity[Set Complexity Mode<br/>FAST/STREAMLINED/FULL] --> CheckMode{Complexity Mode}
+    
+    CheckMode -- FAST --> FastPath[Generate Minimal Plan<br/>Skip user approval]
+    FastPath --> WriteSpec1[Write state/spec.md<br/>minimal content]
+    WriteSpec1 --> WritePlan1[Write state/plan.md<br/>single task]
+    WritePlan1 --> Building
+    
+    CheckMode -- STREAMLINED<br/>or FULL --> Planning[State: PLANNING]
+    Planning --> FetchContextPlan[Fetch Context<br/>fetch_context('planning')]
+    FetchContextPlan --> TryOpenground1[Try: openground search]
+    TryOpenground1 --> OpenSuccess1{Success?}
+    OpenSuccess1 -- Yes --> GetContext1[Get Semantic Results]
+    OpenSuccess1 -- No --> RegexFallback1[Regex Fallback Search]
+    RegexFallback1 --> GetContext1
+    
+    GetContext1 --> GenerateSpec[Generate spec.md<br/>requirements + constraints]
+    GenerateSpec --> GeneratePlan[Generate plan.md<br/>atomic tasks checklist]
+    GeneratePlan --> WriteSpec2[Write state/spec.md]
+    WriteSpec2 --> WritePlan2[Write state/plan.md]
+    
+    WritePlan2 --> WaitForApproval{Wait for<br/>User Approval}
+    WaitForApproval -- Approved --> Building
+    WaitForApproval -- Timeout --> Building
+    
+    subgraph Building [State: BUILDING]
+        B1[Load plan.md] --> B2[Load codebase_map.md]
+        B2 --> B3[Initialize MCP Client<br/>McpClient('127.0.0.1:8080')]
+        B3 --> B4[Create Task Branch<br/>task-{uuid}]
+        B4 --> B5[Switch to Branch]
+        
+        B5 --> IterationLoop[Start Iteration Loop<br/>max_iterations=25]
+        
+        IterationLoop --> GetTemp[Get Temperature<br/>get_escalated_temperature(attempt)]
+        
+        GetTemp --> FetchContextTask[Fetch Task Context<br/>fetch_context('next task')]
+        FetchContextTask --> TryOpenground2[Try: openground search]
+        TryOpenground2 --> OpenSuccess2{Success?}
+        OpenSuccess2 -- Yes --> GetContext2[Get Semantic Results]
+        OpenSuccess2 -- No --> RegexFallback2[Regex Fallback Search]
+        RegexFallback2 --> GetContext2
+        
+        GetContext2 --> GenerateCode[Generate Code<br/>_generate_code(plan, context, temp)]
+        GenerateCode --> LogPrompt[Log AI Conversation<br/>role='SYSTEM', message=prompt]
+        GenerateCode --> LogResponse[Log AI Conversation<br/>role='AI', message=code]
+        
+        LogResponse --> SaveCode[Save to tmp_dir<br/>task_{uuid}.py]
+        SaveCode --> RunBIST[Run BIST<br/>_run_bist(code_path)]
+        
+        RunBIST --> BISTResult{BIST Passed?}
+        BISTResult -- Yes --> CommitCode[Commit to Branch<br/>mcp_client.commit()]
+        CommitCode --> BuildingSuccess([Exit Building<br/>Success=True])
+        
+        BISTResult -- No --> CheckLoop[Check Loop Detection<br/>_detect_loop(code, attempt)]
+        CheckLoop --> LoopDetected{Loop Detected?}
+        
+        LoopDetected -- Yes --> EscalateTemp[Escalate Temperature<br/>attempt + 1]
+        EscalateTemp --> CheckLimits
+        
+        LoopDetected -- No --> CheckLimits[Check Termination Limits<br/>loop_guardian.should_terminate()]
+        CheckLimits --> ShouldTerminate{Should Terminate?}
+        ShouldTerminate -- No --> IterationLoop
+        ShouldTerminate -- Yes --> BuildingFail([Exit Building<br/>Success=False])
+    end
+    
+    Building --> Verify{Building Success?}
+    
+    Verify -- Yes --> Verifying[State: VERIFYING]
+    Verifying --> RunTests[Run Integration Tests<br/>lint + typecheck + runtime]
+    RunTests --> TestsPass{Tests Passed?}
+    TestsPass -- Yes --> Complete([State: COMPLETE])
+    TestsPass -- No --> Debugging
+    
+    Verify -- No --> Debugging[State: DEBUGGING]
+    
+    subgraph Debugging [State: DEBUGGING]
+        D1[Get Retry Count<br/>loop_guardian.get_retry_count()] --> D2{Retry Count < 3?}
+        D2 -- Yes --> D3[Escalate Temperature<br/>+0.3 per attempt]
+        D3 --> D4[Return to BUILDING]
+        D4 --> Building
+        
+        D2 -- No --> DebuggingFail([State: FAILED])
+    end
+    
+    Debugging --> CompleteOrFail{Task Outcome}
+    DebuggingFail --> CompleteOrFail
+    Complete --> CompleteOrFail
+    
+    CompleteOrFail --> Cleanup[Cleanup MCP Server<br/>mcp_process.terminate()]
+    Cleanup --> LogFinal[Log Final Status<br/>COMPLETED or FAILED]
+    LogFinal --> End([Orchestration Complete])
+    
+    %% Mid-flight steering (async)
+    subgraph Steering [Async: Inbox Polling]
+        PollInbox{Poll state/inbox.md<br/>every 5s} --> CommandExists{Command Exists?}
+        CommandExists -- Yes --> ReadCommand[Read Command]
+        ReadCommand --> ParseCommand{Command Type}
+        
+        ParseCommand -- /pause --> PauseExecution[Pause Execution<br/>time.sleep(10)]
+        ParseCommand -- /checkpoint --> SaveCheckpoint[Save Checkpoint<br/>current state snapshot]
+        ParseCommand -- /rollback --> RestoreCheckpoint[Restore from Checkpoint]
+        
+        PauseExecution --> ClearInbox
+        SaveCheckpoint --> ClearInbox
+        RestoreCheckpoint --> ClearInbox
+        
+        ClearInbox[Clear inbox.md] --> PollInbox
+        CommandExists -- No --> PollInbox
+    end
+    
+    Steering -.-> Building
+    Steering -.-> Verifying
+    Steering -.-> Debugging
