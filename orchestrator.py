@@ -69,6 +69,12 @@ class Orchestrator:
         self.loop_guardian = LoopGuardian(self.config)
         self.complexity_mode = ComplexityMode.STREAMLINED  # Default
         
+        # Datetime stamped task folder in /tmp
+        date_stamp = datetime.now().strftime("%m%d%y")
+        self.tmp_dir = Path("C:/tmp") / date_stamp
+        self.tmp_dir.mkdir(parents=True, exist_ok=True)
+        print(f"📁 Tasks will be stored in: {self.tmp_dir}")
+        
     def _load_config(self) -> dict:
         """Load configuration from YAML file."""
         config_path = self.project_root / "config" / "default.yml"
@@ -88,6 +94,18 @@ class Orchestrator:
                 """, ("orchestrator", iteration, status, details))
         except Exception as e:
             print(f"⚠️ Failed to log event: {e}")
+
+    def _log_ai_conversation(self, role: str, message: str) -> None:
+        """Log AI conversation (prompt/response) to database."""
+        db_path = self.logs_dir / "activity.db"
+        try:
+            with sqlite3.connect(f"file:{db_path}?mode=rw", uri=True) as conn:
+                conn.execute("""
+                    INSERT INTO ai_conversation (role, message)
+                    VALUES (?, ?)
+                """, (role, message))
+        except Exception as e:
+            print(f"⚠️ Failed to log AI conversation: {e}")
     
     def set_complexity_mode(self, mode: str) -> None:
         """Set complexity mode from user input.
