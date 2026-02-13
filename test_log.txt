@@ -1,8 +1,0 @@
-======================================================================
-Traceback (most recent call last):
-  File "C:\Users\ukchim01\Downloads\Ai Tools\HybridConductor_v7\loop_guardian.py", line 273, in <module>
-    print("\U0001f9ea Running loop_guardian.py comprehensive tests...")
-  File "C:\Program Files\Python312\Lib\encodings\cp1252.py", line 19, in encode
-    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-UnicodeEncodeError: 'charmap' codec can't encode character '\U0001f9ea' in position 0: character maps to <undefined>

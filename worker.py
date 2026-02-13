@@ -213,55 +213,51 @@ def execute_task(
             
             print(f"Attempt {attempt + 1}/{max_iterations} (temp={temperature})")
             
-            # Log prompt
-            prompt = f"Executing plan: {plan[:100]}...\nContext: {context[:100]}...\nTemperature: {temperature}"
-            _log_ai_conversation("SYSTEM", prompt)
+            # Generate code simulation
+            response = _generate_code(plan=plan, context=context, temperature=temperature)
+            _log_ai_conversation("AI", response[:500])
             
-            # Generate code using LLM
-            code = _generate_code(
-                plan=plan,
-                context=context,
-                temperature=temperature
-            )
+            # Parse multiple files (delimited by # filename: ...)
+            file_blocks = re.split(r"^# filename: ", response, flags=re.MULTILINE)
             
-            # Log response
-            _log_ai_conversation("AI", code[:500])
+            all_bist_success = True
+            saved_files = []
             
-            # Save generated code to tmp_dir
-            code_path = tmp_dir / f"task_{task_id}.py"
-            with open(code_path, "w", encoding="utf-8-sig") as f:
-                f.write(code)
-            
-            print(f" Code saved to: {code_path}")
-            
-            # Run BIST (Built-In Self-Test)
-            if _run_bist(code_path):
-                print(f" BIST passed. Code saved to {code_path}")
+            for block in file_blocks:
+                if not block.strip(): continue
+                lines = block.strip().splitlines()
+                filename = lines[0].strip()
+                content = "\n".join(lines[1:])
                 
-                # Copy to project root for commit
-                final_path = Path.cwd() / f"task_{task_id}.py"
-                try:
-                    with open(code_path, "r", encoding="utf-8-sig") as src, open(final_path, "w", encoding="utf-8-sig") as dst:
+                # Save to tmp_dir for BIST
+                tmp_path = tmp_dir / filename
+                with open(tmp_path, "w", encoding="utf-8-sig") as f:
+                    f.write(content)
+                
+                # Run BIST
+                if not _run_bist(tmp_path):
+                    print(f" BIST failed for: {filename}")
+                    all_bist_success = False
+                    break
+                
+                saved_files.append((tmp_path, filename))
+            
+            if all_bist_success and saved_files:
+                print(f" All {len(saved_files)} files passed BIST.")
+                for tmp_path, filename in saved_files:
+                    final_path = Path.cwd() / filename
+                    with open(tmp_path, "r", encoding="utf-8-sig") as src, open(final_path, "w", encoding="utf-8-sig") as dst:
                         dst.write(src.read())
-                    print(f" Code copied to project root: {final_path}")
-                except Exception as e:
-                    print(f" Failed to copy code to project root: {e}")
-                    return False
+                    print(f" Persisted: {filename}")
                 
                 mcp_client.commit(f"Auto-commit task {task_id}")
                 return True
             else:
-                print(f" BIST failed on attempt {attempt + 1}")
-                _log_ai_conversation("SYSTEM", f"BIST failed for {code_path}. Retrying...")
-                
-                # Check for loop detection
-                if _detect_loop(code, attempt):
-                    print(" Loop detected. Escalating temperature...")
-                    continue  # Retry with higher temperature
-                
-                if attempt >= 2:  # Max 3 attempts (0, 1, 2)
-                    print(" Max attempts reached. Task failed.")
-                    break
+                print(f" Attempt {attempt + 1} failed.")
+                if _detect_loop(response, attempt):
+                    print(" Loop detected. Escalating...")
+                    continue
+                if attempt >= 2: break
         
         return False
         
@@ -353,29 +349,43 @@ def _get_temperature_for_attempt(attempt: int) -> float:
 
 def _generate_code(plan: str, context: str, temperature: float) -> str:
     """
-    Generate code using LLM with given parameters.
+    Generate code simulations based on prompt keywords.
     
-    NOTE: This is a placeholder. Real implementation would call LLM API.
-    For testing purposes, we generate valid Python code.
+    NOTE: Real implementation would call LLM API.
+    This enhancement supports basic multi-file simulation for testing.
     """
-    # Prefix each line with # to ensure it's a valid comment
-    commented_plan = "\n".join(f"# {line}" for line in plan.splitlines()[:10])
-    commented_context = "\n".join(f"# {line}" for line in context.splitlines()[:10])
+    prompt = plan.lower()
     
-    return f'''#!/usr/bin/env python3
-"""
-Generated Code
-Temperature: {temperature}
-"""
+    if "math_utils" in prompt and "main" in prompt:
+        return f'''# filename: math_utils.py
+def add(a, b):
+    return a + b
 
-# PLAN:
-{commented_plan}
-
-# CONTEXT:
-{commented_context}
-
+# filename: main.py
+import math_utils
 def main():
-    """Main execution function."""
+    result = math_utils.add(5, 7)
+    print(f"Result: {result}")
+    return result == 12
+
+if __name__ == "__main__":
+    success = main()
+    exit(0 if success else 1)
+'''
+    elif "hello" in prompt:
+        return f'''# filename: hello.py
+def main():
+    print("Hello, Hybrid Orchestrator!")
+    return True
+
+if __name__ == "__main__":
+    main()
+    exit(0)
+'''
+    
+    # Default template
+    return f'''# filename: task_default.py
+def main():
     print("Task completed successfully!")
     return True
 
