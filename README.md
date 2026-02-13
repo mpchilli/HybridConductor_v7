@@ -110,6 +110,62 @@ Even while the AI runs autonomously, you can issue commands via the Dashboard or
 
 ## 🏗️ Architecture
 
+### Detailed Process Flow (ASCII)
+
+A code-level view of the execution loop, showing where user interaction (`[ USER ]`) and display points occur.
+
+```text
+START
+  |
+  +---[ USER ] Input: Prompt & Complexity Mode (FAST/STREAMLINED/FULL)
+  |      |
+  |      v
+  +-> ORCHESTRATOR (orchestrator.py) - State Machine Init
+         |
+         +-> State: PLANNING
+         |      |
+         |      +-> Generate spec.md & plan.md
+         |      |
+         |      +---[ DISPLAY ] Show Plan to User
+         |      +---[ USER ]    Approve Plan? (y/n)
+         |             |
+         |             v
+         +-> State: BUILDING <---------------------------------------+
+         |      |                                                    |
+         |      +--- worker.py (Isolated Subprocess)                 |
+         |      |      |                                             |
+         |      |      +-> Git Branch Creation (task-xyz)            |
+         |      |      +-> Context Retrieval (Openground/L3)         |
+         |      |      +-> LLM Generation (Code Write)               |
+         |      |      +-> Atomic File Save                          |
+         |      |                                                    |
+         |      |      +-> BIST (Built-In Self-Test)                 |
+         |      |             |                                      |
+         |      |             +---[ FAIL ] ---> LoopGuardian Check --+
+         |      |             |                    |                 |
+         |      |             |                    +---[ LOOP ] ---> Escalate Temp
+         |      |             |                                      |
+         |      |             +---[ DISPLAY ] Stream Logs (SSE)      |
+         |      |                                                    |
+         |      |             +---[ PASS ] ---> Commit to Branch     |
+         |      |
+         |      +--- Check Inbox (state/inbox.md)
+         |             |
+         |             +---[ USER ] Command Injection (/pause, /checkpoint)
+         |             |
+         |             +---[ DISPLAY ] Update Dashboard Status
+         |
+         +-> State: VERIFYING
+         |      |
+         |      +-> Run Integration Tests
+         |      +---[ DISPLAY ] Show Test Results
+         |
+         +-> State: COMPLETE / FAILED
+                |
+                v
+         [ DISPLAY ] Final Report & Artifacts
+```
+
 ### System Flow
 The system follows a deterministic state machine: **Planning → Building → Verifying**.
 
