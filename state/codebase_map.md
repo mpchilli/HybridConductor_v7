@@ -1,0 +1,37 @@
+﻿# Codebase Structure
+
+- HybridConductor_v7/
+  - .gitignore
+  - cartographer.py
+  - config/
+    - default.yml
+  - context_fetcher.py
+  - dashboard/
+    - app.py
+    - static/
+      - css/
+      - js/
+    - templates/
+      - config.html
+      - history.html
+      - monitor.html
+  - data/
+  - docs/
+    - prompts/
+      - PRD_7.2.8.md
+  - logs/
+    - activity.db
+  - loop_guardian.py
+  - models/
+  - notebooks/
+  - orchestrator.py
+  - presets/
+    - fast_track.yml
+    - full.yml
+    - streamlined.yml
+  - scripts/
+  - setup.py
+  - src/
+  - state/
+  - tests/
+  - worker.py

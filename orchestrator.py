@@ -125,7 +125,14 @@ class Orchestrator:
     def _handle_planning(self, prompt: str) -> None:
         """Handle planning state based on complexity mode."""
         if self.complexity_mode == ComplexityMode.FAST:
-            # FAST mode: Skip planning, go directly to building
+            # FAST mode: Generate minimal plan and go to building
+            print("⚡ FAST mode: Generating minimal plan...")
+            # Create minimal artifacts to satisfy worker requirements
+            with open(self.state_dir / "spec.md", "w", encoding="utf-8-sig") as f:
+                f.write(f"# Fast Mode Spec\nPrompt: {prompt}")
+            with open(self.state_dir / "plan.md", "w", encoding="utf-8-sig") as f:
+                f.write(f"# Fast Mode Plan\n- [ ] Execute: {prompt}")
+            
             self.current_state = State.BUILDING
             return
         
