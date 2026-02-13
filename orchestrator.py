@@ -37,6 +37,7 @@ from loop_guardian import LoopGuardian
 from context_fetcher import ContextFetcher
 from cartographer import generate_map as generate_codebase_map
 from providers import get_provider
+from tui import TerminalUI
 
 
 class State(Enum):
@@ -74,6 +75,10 @@ class Orchestrator:
         self.loop_guardian = LoopGuardian(self.config)
         self.context_fetcher = ContextFetcher(self.project_root)
         self.complexity_mode = ComplexityMode(self.config.get("default_complexity", "streamlined"))
+        
+        # Initialize TUI
+        self.tui_enabled = not bool(os.environ.get("HC_BACKGROUND_CHILD"))
+        self.tui = TerminalUI() if self.tui_enabled else None
         
         # Initialize LLM Provider
         provider_cfg = self.config.get("llm", {"provider": "gemini"})
@@ -146,8 +151,12 @@ class Orchestrator:
         return config
     
     def _log_event(self, status: str, details: str, iteration: int = 0) -> None:
-        """Log event to SQLite activity database."""
+        """Log event to SQLite activity database and TUI."""
+        if self.tui_enabled and self.tui:
+            self.tui.update_event(status, details)
+            
         db_path = self.logs_dir / "activity.db"
+        # ... (rest of the method)
         try:
             if not db_path.exists():
                 return
@@ -246,39 +255,57 @@ class Orchestrator:
     
     def run(self, prompt: str) -> None:
         """Main execution loop implementing state machine."""
-        print(f" Starting orchestration in {self.complexity_mode.value} mode")
-        self._log_event('STARTED', f"Starting orchestration in {self.complexity_mode.value} mode")
+        if self.tui_enabled and self.tui:
+            self.tui.start()
+            
+        try:
+            print(f" Starting orchestration in {self.complexity_mode.value} mode")
+            self._log_event('STARTED', f"Starting orchestration in {self.complexity_mode.value} mode")
+            
+            # Generate L0 codebase map if needed
+            if not (self.state_dir / "codebase_map.md").exists():
+                generate_codebase_map(self.project_root)
+            
+            # Main state machine loop
+            while self.current_state not in [State.COMPLETE, State.FAILED]:
+                # Update TUI state
+                if self.tui_enabled and self.tui:
+                    self.tui.set_state(self.current_state.value)
+                
+                self._log_event('RUNNING', f"Entering state: {self.current_state.value}", self.loop_guardian.iteration_count)
+            
+                if self.current_state == State.PLANNING:
+                    self._handle_planning(prompt)
+                elif self.current_state == State.BUILDING:
+                    self._handle_building()
+                elif self.current_state == State.VERIFYING:
+                    self._handle_verifying()
+                elif self.current_state == State.DEBUGGING:
+                    self._handle_debugging()
+                
+                # Check for user commands in inbox
+                self._process_inbox_commands()
+                
+                # Respect iteration/time limits
+                if self.loop_guardian.should_terminate():
+                    self.current_state = State.FAILED
+                    break
+                
+                time.sleep(2)  # Prevent excessive CPU usage
         
-        # Generate L0 codebase map if needed
-        if not (self.state_dir / "codebase_map.md").exists():
-            generate_codebase_map(self.project_root)
-        
-        # Main state machine loop
-        while self.current_state not in [State.COMPLETE, State.FAILED]:
-            self._log_event('RUNNING', f"Entering state: {self.current_state.value}", self.loop_guardian.iteration_count)
+        except Exception as e:
+            self._log_event('ERROR', f"Fatal error in run loop: {e}")
+            self.current_state = State.FAILED
+            raise e
+        finally:
+            print(f" Orchestration completed with state: {self.current_state.value}")
+            status = 'COMPLETED' if self.current_state == State.COMPLETE else 'FAILED'
+            self._log_event(status, f"Orchestration completed with state: {self.current_state.value}")
             
-            if self.current_state == State.PLANNING:
-                self._handle_planning(prompt)
-            elif self.current_state == State.BUILDING:
-                self._handle_building()
-            elif self.current_state == State.VERIFYING:
-                self._handle_verifying()
-            elif self.current_state == State.DEBUGGING:
-                self._handle_debugging()
-            
-            # Check for user commands in inbox
-            self._process_inbox_commands()
-            
-            # Respect iteration/time limits
-            if self.loop_guardian.should_terminate():
-                self.current_state = State.FAILED
-                break
-            
-            time.sleep(2)  # Prevent excessive CPU usage
-        
-        print(f" Orchestration completed with state: {self.current_state.value}")
-        status = 'COMPLETED' if self.current_state == State.COMPLETE else 'FAILED'
-        self._log_event(status, f"Orchestration completed with state: {self.current_state.value}")
+            if self.tui_enabled and self.tui:
+                self.tui.set_state(self.current_state.value)
+                time.sleep(2) # Give user a moment to see final state
+                self.tui.stop()
     
     def _handle_planning(self, prompt: str) -> None:
         """Handle planning state based on complexity mode."""
