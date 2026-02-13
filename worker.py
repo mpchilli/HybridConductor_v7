@@ -237,6 +237,17 @@ def execute_task(
             # Run BIST (Built-In Self-Test)
             if _run_bist(code_path):
                 print(f" BIST passed. Code saved to {code_path}")
+                
+                # Copy to project root for commit
+                final_path = Path.cwd() / f"task_{task_id}.py"
+                try:
+                    with open(code_path, "r", encoding="utf-8-sig") as src, open(final_path, "w", encoding="utf-8-sig") as dst:
+                        dst.write(src.read())
+                    print(f" Code copied to project root: {final_path}")
+                except Exception as e:
+                    print(f" Failed to copy code to project root: {e}")
+                    return False
+                
                 mcp_client.commit(f"Auto-commit task {task_id}")
                 return True
             else:
