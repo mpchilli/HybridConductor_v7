@@ -3,56 +3,21 @@ import webview
 import sys
 import threading
 import time
-import socket
-import subprocess
 import os
-from pathlib import Path
+from backend.dashboard.app import app
 
 # Configuration
 HOST = "127.0.0.1"
 PORT = 5000
 URL = f"http://{HOST}:{PORT}/"
-DASHBOARD_SCRIPT = Path("backend/dashboard/app.py")
-
-def is_port_open(host, port):
-    """Check if the port is open."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex((host, port)) == 0
 
 def start_backend():
-    """Starts the Flask backend as a subprocess."""
+    """Starts the Flask backend in a separate thread."""
     print(f"🚀 Starting Backend on {URL}...")
     
-    # Check if already running
-    if is_port_open(HOST, PORT):
-        print(f"⚠️ Port {PORT} is already in use. Assuming Dashboard is running.")
-        return None
-
-    cmd = [sys.executable, str(DASHBOARD_SCRIPT)]
-    
-    try:
-        process = subprocess.Popen(
-            cmd,
-            cwd=str(Path.cwd()),
-            env=os.environ.copy()
-        )
-        return process
-    except Exception as e:
-        print(f"❌ Failed to start backend: {e}")
-        return None
-
-def wait_for_server():
-    """Waits for the server to be ready."""
-    print("⏳ Waiting for server to be ready...")
-    attempts = 0
-    while not is_port_open(HOST, PORT):
-        time.sleep(0.5)
-        attempts += 1
-        if attempts > 30:
-            print("❌ Server timeout.")
-            return False
-    print("✅ Server is ready!")
-    return True
+    # Run the Flask app
+    # use_reloader=False is crucial for Pywebview + Threading
+    app.run(host=HOST, port=PORT, debug=False, use_reloader=False)
 
 def on_closed():
     """Callback when window is closed."""
@@ -62,19 +27,18 @@ def on_closed():
 def main():
     print("🖥️ Initializing HybridConductor GUI...")
     
-    # 1. Start Backend
-    backend_process = start_backend()
-    
-    # 2. Wait for Server
-    if not wait_for_server():
-        print("❌ Could not connect to backend. Exiting.")
-        if backend_process:
-            backend_process.terminate()
-        sys.exit(1)
+    # 1. Start Backend Thread
+    t = threading.Thread(target=start_backend, daemon=True)
+    t.start()
+
+    # 2. Wait for Server (Simple delay ensures thread starts)
+    # Since it's in-process, we trust it spins up quickly.
+    # A robust check could ping the port, but this is usually sufficient for local GUI.
+    time.sleep(1) 
 
     # 3. Create Window
     print("🎨 Creating window...")
-    window = webview.create_window(
+    webview.create_window(
         "HybridConductor v8.0", 
         URL,
         width=1280,
@@ -85,11 +49,6 @@ def main():
     
     # 4. Start GUI Loop
     webview.start(on_closed, debug=True)
-
-    # 5. Cleanup
-    if backend_process:
-        print("👋 Terminating backend...")
-        backend_process.terminate()
 
 if __name__ == "__main__":
     main()
