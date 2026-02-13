@@ -42,20 +42,8 @@ def sse_generator():
     while True:
         try:
             # Get data from queue, blocking until available
-            # Note: In a real multi-client app, we'd need a pub/sub system or individual queues
-            # For this simple dashboard, we just generate fresh data or use a broadcast mechanism
-            # Here we simulate a stream by just yielding generated data directly for each client
-            # to avoid queue contention issues in this simple example.
-            
-            data = {
-                "type": "update",
-                "timestamp": time.time(),
-                "cpu": random.randint(5, 95),
-                "memory": random.randint(30, 70),
-                "log": f"System active at {time.strftime('%H:%M:%S')}"
-            }
+            data = event_queue.get()
             yield f"data: {json.dumps(data)}\n\n"
-            time.sleep(1)
         except Exception as e:
             print(f"Stream error: {e}")
             break
@@ -77,6 +65,16 @@ def console():
     data = request.json
     command = data.get('command', '')
     # Simulate command execution
+    log_entry = {
+        "type": "log", 
+        "message": f"User command: {command}", 
+        "timestamp": time.time()
+    }
+    # In a real app, this would trigger an orchestrator task
+    # For now, we inject a log entry so it shows up in the console
+    # Note: The main loop generates full state, so this might be overwritten
+    # quickly unless we merge state. For this demo, let's just log it.
+    
     return jsonify({
         "command": command,
         "output": f"Executed: {command}",
