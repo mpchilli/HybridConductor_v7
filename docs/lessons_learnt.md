@@ -1,0 +1,50 @@
+# Hybrid Orchestrator v7.2.8 - Lessons Learned
+
+## 1. Windows-Native Environment Challenges
+
+### Unicode encoding (CP1252)
+- **Issue**: Standard Windows consoles (using CP1252 encoding) throw `UnicodeEncodeError` when trying to print emoji characters (e.g., 🧪, ✅, 🎉).
+- **Why**: The default `sys.stdout` encoding on Windows often lacks support for supplementary plane characters used in emojis.
+- **Fix**: Replaced all emojis with ASCII text equivalents (e.g., `PASS:`, `ERROR:`, `RUNNING:`) to ensure cross-platform compatibility and stability.
+
+### Subprocess Create No Window
+- **Issue**: Background processes (like the MCP server) can cause flickering console windows on Windows.
+- **Fix**: Used `creationflags=subprocess.CREATE_NO_WINDOW` in `subprocess.Popen` calls to ensure silent background execution.
+
+## 2. Worker & Persistence Logic
+
+### Temp Directory vs. Project Root
+- **Issue**: `worker.py` successfully ran Built-In Self-Tests (BIST) in a temporary directory but failed to "persist" the results to the repository.
+- **Why**: The code was verified in isolation for safety, but the logic to copy the verified code back to the project root before `git add .` was missing.
+- **Fix**: Added explicit logic to copy BIST-passed files from the temporary directory to the current working directory before committing.
+
+### Multi-File Task Support
+- **Issue**: The initial implementation assumed a single task would result in a single file (`task_{id}.py`).
+- **Fix**: Enhanced `worker.py` and `orchestrator.py` to support multi-file output by parsing `# filename: <name>` headers in the LLM response. This allows the system to generate complex utility libraries or multi-module features in a single pass.
+
+### Restrictive BIST Success Criteria
+- **Issue**: `_run_bist` check for "Task completed" in stdout caused valid tasks to fail if they didn't match that exact string.
+- **Why**: The original simulation template included this string, but subsequent "LLM" simulations (like "Hello World") used more realistic project-specific output.
+- **Fix**: Broadened BIST success to depend primarily on `returncode == 0` (script executed without error).
+
+## 3. Python Development Pitfalls
+
+### Missing Standard Imports
+- **Issue**: Persistent `NameError` for `sys` and `re`.
+- **Why**: Several utility functions relied on these modules but they were only imported in certain scopes or missing entirely from the top-level imports of `worker.py`.
+- **Fix**: Standardized top-level imports in all project files.
+
+### Import Aliasing and Namespacing
+- **Issue**: `orchestrator.py` failed to load because it expected `generate_codebase_map` from `cartographer.py`, but the function was named `generate_map`.
+- **Fix**: Used `from cartographer import generate_map as generate_codebase_map` to maintain backwards compatibility with the orchestrator's expectations without renaming core library functions.
+
+### Docstring Closures
+- **Issue**: File-level `SyntaxError` prevents any execution or tests.
+- **Why**: `context_fetcher.py` had an unclosed triple-quoted docstring at the top of the file, which broke the entire Python module.
+- **Fix**: Added rigorous `py_compile` checks to the validation workflow to catch these before running deeper logic.
+
+## 4. Operational Insights
+
+### CLI Entry Point Separation
+- **Issue**: The orchestrator only ran its internal test suite when executed directly, ignoring CLI arguments like `--prompt`.
+- **Fix**: Restructured `orchestrator.py` to use `argparse` and separate the "Verification Mode" (internal tests) from the "Execution Mode" (real tasks).

@@ -23,6 +23,7 @@ WINDOWS-SPECIFIC CONSIDERATIONS:
 
 import os
 import sys
+import re
 import subprocess
 import tempfile
 import sqlite3
@@ -416,7 +417,9 @@ def _run_bist(code_path: Path) -> bool:
         )
         
         # Check return code and output
-        success = result.returncode == 0 and "Task completed" in result.stdout
+        # success = result.returncode == 0 and "Task completed" in result.stdout
+        # BIST passes if return code is 0 (script executed without error)
+        success = result.returncode == 0
         print(f"BIST Result: {'PASS' if success else 'FAIL'}")
         print(f"  Return Code: {result.returncode}")
         print(f"  Output: {result.stdout[:200]}")
