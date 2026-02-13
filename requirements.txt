@@ -2,3 +2,7 @@ flask
 flask-cors
 pywebview
 pyinstaller
+pyyaml
+requests
+pytest>=7.0
+rich>=13.0
