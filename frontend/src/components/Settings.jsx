@@ -1,6 +1,10 @@
 import React from 'react';
 
-const Settings = ({ onClose }) => {
+const Settings = ({ config, setConfig, onReset, onClose }) => {
+  const updateConfig = (key, value) => {
+    setConfig(prev => ({ ...prev, [key]: parseInt(value) }));
+  };
+
   return (
     <div className="h-full flex flex-col">
       <div className="flex justify-between items-center mb-6">
@@ -13,9 +17,24 @@ const Settings = ({ onClose }) => {
         <div className="animate-in fade-in slide-in-from-right-4 duration-500">
             <h3 className="text-xs font-bold text-gray-500 mb-4 uppercase tracking-widest border-b border-gray-800 pb-1">Orchestrator Complexity</h3>
             <div className="space-y-6">
-                <Slider label="Creativity" value={70} color="accent" />
-                <Slider label="Detail Level" value={90} color="primary" />
-                <Slider label="Context Window" value={50} color="blue" />
+                <Slider 
+                    label="Creativity" 
+                    value={config.creativity} 
+                    onChange={(v) => updateConfig('creativity', v)}
+                    color="accent" 
+                />
+                <Slider 
+                    label="Detail Level" 
+                    value={config.detail} 
+                    onChange={(v) => updateConfig('detail', v)}
+                    color="primary" 
+                />
+                <Slider 
+                    label="Context Window" 
+                    value={config.context} 
+                    onChange={(v) => updateConfig('context', v)}
+                    color="blue" 
+                />
             </div>
         </div>
 
@@ -32,15 +51,18 @@ const Settings = ({ onClose }) => {
       </div>
       
       <div className="mt-4 pt-6 border-t border-glass-200">
-         <button className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 py-3 rounded-xl transition-all border border-red-500/20 hover:border-red-500/50 text-sm font-bold tracking-wide uppercase">
-            Reset to Defaults
+         <button 
+           onClick={onReset}
+           className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 py-3 rounded-xl transition-all border border-red-500/20 hover:border-red-500/50 text-sm font-bold tracking-wide uppercase"
+         >
+            Reset Session
          </button>
       </div>
     </div>
   );
 };
 
-const Slider = ({ label, value, color }) => (
+const Slider = ({ label, value, color, onChange }) => (
     <div className="space-y-2 group">
         <div className="flex justify-between text-xs font-medium">
             <span className="group-hover:text-white transition-colors">{label}</span>
@@ -54,7 +76,10 @@ const Slider = ({ label, value, color }) => (
              <input 
                 type="range" 
                 className="absolute inset-0 opacity-0 cursor-pointer"
-                defaultValue={value}
+                min="0"
+                max="100"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
              />
         </div>
     </div>

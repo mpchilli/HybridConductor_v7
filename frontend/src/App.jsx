@@ -8,6 +8,12 @@ import { useKeyboard } from './hooks/useKeyboard';
 
 function App() {
   const [showSettings, setShowSettings] = useState(false);
+  const [config, setConfig] = useState({
+    creativity: 70,
+    detail: 90,
+    context: 50
+  });
+
   const { data: sseData, status: sseStatus } = useSSE('/api/stream');
   
   // Use SSE data or fallback to defaults
@@ -16,7 +22,7 @@ function App() {
 
   useKeyboard({
     'Ctrl+,': () => setShowSettings(prev => !prev),
-    'Ctrl+K': () => console.log('Clear console triggered'), // Console clears usually internal state
+    'Ctrl+K': () => console.log('Clear console triggered'),
   });
 
   const handleSend = (text) => {
@@ -25,6 +31,12 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ command: text })
     }).catch(console.error);
+  };
+
+  const handleReset = () => {
+    fetch('/api/reset', { method: 'POST' })
+      .then(() => window.location.reload()) // Forced refresh to clear local cache
+      .catch(console.error);
   };
 
 
@@ -80,7 +92,12 @@ function App() {
       {showSettings && (
         <div className="absolute inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm">
           <div className="w-96 h-full bg-gray-900 border-l border-glass-200 shadow-2xl p-6 overflow-y-auto">
-             <Settings onClose={() => setShowSettings(false)} />
+             <Settings 
+                config={config} 
+                setConfig={setConfig} 
+                onReset={handleReset}
+                onClose={() => setShowSettings(false)} 
+             />
           </div>
         </div>
       )}

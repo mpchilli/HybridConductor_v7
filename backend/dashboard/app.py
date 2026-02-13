@@ -5,6 +5,7 @@ import json
 import random
 import threading
 import queue
+import os
 
 # Add static folder config for serving React build
 app = Flask(__name__, static_folder='../static', static_url_path='')
@@ -85,32 +86,108 @@ def console():
         "timestamp": timestamp
     })
     
-    # Simulate adding a task based on command
     if command:
-        new_task_id = max([t["id"] for t in task_state["tasks"]]) + 1 if task_state["tasks"] else 1
-        new_task = {
-            "id": new_task_id, 
-            "name": f"Task: {command}", 
-            "status": "pending",
-            "children": [] 
-        }
-        task_state["tasks"].append(new_task)
-        
-        # Simulate swift execution start
-        threading.Timer(1.0, lambda: update_task_status(new_task_id, "running")).start()
-        threading.Timer(4.0, lambda: update_task_status(new_task_id, "completed")).start()
+        if "landing page" in command.lower():
+            # Complex task simulation
+            root_id = max([t["id"] for t in task_state["tasks"]]) + 1 if task_state["tasks"] else 1
+            main_task = {
+                "id": root_id, 
+                "name": f"Project: {command}", 
+                "status": "running",
+                "children": [
+                    {"id": root_id + 1, "name": "Strategic Discovery", "status": "completed", "details": "Analyzing target audience and competitive landscape."},
+                    {"id": root_id + 2, "name": "Brand Identity Design", "status": "running", "children": [
+                        {"id": root_id + 3, "name": "Color Palette Generation", "status": "completed"},
+                        {"id": root_id + 4, "name": "Typography Selection", "status": "running"}
+                    ]},
+                    {"id": root_id + 5, "name": "Module Engineering", "status": "pending", "children": [
+                        {"id": root_id + 6, "name": "Interactive Hero Section", "status": "pending"},
+                        {"id": root_id + 7, "name": "Responsive Grid Layout", "status": "pending"}
+                    ]}
+                ] 
+            }
+            task_state["tasks"].append(main_task)
+            
+            # Simulate progress
+            def run_complex_sim():
+                time.sleep(2)
+                update_subtask_status(root_id, root_id + 4, "completed")
+                update_subtask_status(root_id, root_id + 2, "completed")
+                update_subtask_status(root_id, root_id + 5, "running")
+                update_subtask_status(root_id, root_id + 6, "running")
+                
+                time.sleep(3)
+                update_subtask_status(root_id, root_id + 6, "completed")
+                update_subtask_status(root_id, root_id + 7, "running")
+                
+                time.sleep(2)
+                update_subtask_status(root_id, root_id + 7, "completed")
+                update_subtask_status(root_id, root_id + 5, "completed")
+                main_task["status"] = "completed"
+                
+                # Generate Mock Output
+                output_dir = os.path.join(app.static_folder, 'output')
+                os.makedirs(output_dir, exist_ok=True)
+                with open(os.path.join(output_dir, 'coffee-shop.html'), 'w') as f:
+                    f.write("<html><body style='background:#111; color:#fff; font-family:sans-serif; display:flex; justify-content:center; align-items:center; height:100vh;'>")
+                    f.write("<div><h1 style='color:#b91c1c;'>Mocha Orchestrator Dashboard</h1><p>Baked fresh by Ralph v8.0</p></div>")
+                    f.write("</body></html>")
+                
+                task_state["logs"].append({
+                    "type": "SUCCESS",
+                    "message": "Deployment complete! Preview at /output/coffee-shop.html",
+                    "timestamp": time.time()
+                })
+
+            threading.Thread(target=run_complex_sim, daemon=True).start()
+        else:
+            # Simple task simulation
+            new_task_id = max([t["id"] for t in task_state["tasks"]]) + 1 if task_state["tasks"] else 1
+            new_task = {
+                "id": new_task_id, 
+                "name": f"Task: {command}", 
+                "status": "pending",
+                "children": [] 
+            }
+            task_state["tasks"].append(new_task)
+            threading.Timer(1.0, lambda: update_task_status(new_task_id, "running")).start()
+            threading.Timer(4.0, lambda: update_task_status(new_task_id, "completed")).start()
 
     return jsonify({
         "command": command,
-        "output": f"Scheduled: {command}",
+        "output": f"Orchestrating: {command}",
         "status": "success"
     })
+
+@app.route('/api/reset', methods=['POST'])
+def reset():
+    global task_state
+    task_state = {
+        "tasks": [],
+        "logs": [f"Session reset at {time.strftime('%H:%M:%S')}"]
+    }
+    # Optional: Clear queue or broadcast a 'reset' event
+    event_queue.put({"type": "reset", "timestamp": time.time()})
+    return jsonify({"status": "success", "message": "Session reset"})
 
 def update_task_status(task_id, status):
     for task in task_state["tasks"]:
         if task["id"] == task_id:
             task["status"] = status
             break
+
+def update_subtask_status(root_id, subtask_id, status):
+    """Deep search for subtask to update status."""
+    def _find_and_update(tasks):
+        for t in tasks:
+            if t["id"] == subtask_id:
+                t["status"] = status
+                return True
+            if "children" in t and _find_and_update(t["children"]):
+                return True
+        return False
+    _find_and_update(task_state["tasks"])
+
 
 if __name__ == '__main__':
     print("Starting Ralph Dashboard Backend...")
