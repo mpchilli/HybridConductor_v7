@@ -36,6 +36,7 @@ import tempfile
 from loop_guardian import LoopGuardian
 from context_fetcher import ContextFetcher
 from cartographer import generate_map as generate_codebase_map
+from providers import get_provider
 
 
 class State(Enum):
@@ -72,7 +73,15 @@ class Orchestrator:
         self.current_state = State.PLANNING
         self.loop_guardian = LoopGuardian(self.config)
         self.context_fetcher = ContextFetcher(self.project_root)
-        self.complexity_mode = ComplexityMode(self.config.get("default_complexity", "streamlined")) # Use config default
+        self.complexity_mode = ComplexityMode(self.config.get("default_complexity", "streamlined"))
+        
+        # Initialize LLM Provider
+        provider_cfg = self.config.get("llm", {"provider": "gemini"})
+        self.llm = get_provider(
+            provider_cfg.get("provider", "gemini"),
+            model_name=provider_cfg.get("model", "gemini-1.5-pro")
+        )
+        print(f" LLM Provider initialized: {self.llm}")
         
         # Datetime stamped task folder in temp directory
         date_stamp = datetime.now().strftime("%m%d%y")
