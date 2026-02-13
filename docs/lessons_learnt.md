@@ -53,3 +53,18 @@
 ### CLI Entry Point Separation
 - **Issue**: The orchestrator only ran its internal test suite when executed directly, ignoring CLI arguments like `--prompt`.
 - **Fix**: Restructured `orchestrator.py` to use `argparse` and separate the "Verification Mode" (internal tests) from the "Execution Mode" (real tasks).
+
+## 5. Algorithm Robustness & Determinism
+
+### Floating-Point Drift in Retry Logic
+- **Issue**: `LoopGuardian` test suite failed intermittently on temperature escalation checks (expected `1.3`, got `1.29999999`).
+- **Why**: Python's floating-point arithmetic (IEEE 754) introduced micro-drift when adding `0.3` intervals to the base temperature.
+- **Fix**: Implemented explicit `round(..., 1)` in `get_escalated_temperature()` to force deterministic 1-decimal precision, ensuring the "jiggle" mechanics are predictable.
+
+### Regex Greed & Masking
+- **Issue**: Short hex tokens (e.g., commit hashes `a1b2c3d4`) were being stripped as generic `[HEX_ADDR]`, masking potentially relevant differences, or conversely, `[MEM_ADDR]` logic was dead code because the `[HEX_ADDR]` regex was too broad and ran first.
+- **Fix**: Reordered normalization pipeline to handle specific patterns (Long Memory Addresses `9-16` chars) *before* generic ones, and tuned the regex boundaries (`\b`) to prevent overlapping matches.
+
+### Semantic vs. Superficial Hashing
+- **Issue**: Changing a code comment or adding a blank line caused the SHA-256 hash to change, allowing infinite logic loops to bypass detection.
+- **Fix**: Enhanced `normalize_output()` to strip *all* Python/Shell comments (`#...`) and normalize whitespace/newlines. The system now hashes the *functional logic* only, making it impossible for an LLM to "game" the loop detector with cosmetic changes.

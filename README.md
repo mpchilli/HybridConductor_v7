@@ -155,7 +155,7 @@ This project didn't appear in a vacuum. It stands on the shoulders of:
 - **[7]** [blueprint README](https://github.com/gplasky/gemini-cli-blueprint-extension) — sequential step commands (`/blueprint:research` → `:plan` → `:define` → `:implement` → `:test` → `:refine`); no loop mechanism
 - **[8]** [self-command README](https://github.com/stevenAthompson/self-command) "How it Works" — MCP tool injects commands into gemini-cli via `tmux send-keys`; agent can write then execute its own follow-up commands
 - **[9]** [BMAD README](https://github.com/bmad-code-org/BMAD-METHOD) — 21 specialized agent personas (PM, Architect, Quinn QA, etc.) with structured workflows; no loop/iteration control mechanism
-- **[10]** `loop_guardian.py:L248-266` — `compute_normalized_hash()` calls `hashlib.sha256` on output normalized by `normalize_output()` which strips timestamps, hex addresses, paths, PIDs, thread IDs
+- **[10]** `loop_guardian.py:L248-266` — `compute_normalized_hash()` calls `hashlib.sha256` on output normalized by `normalize_output()` which strips timestamps, hex addresses, paths, PIDs, thread IDs, comments, and whitespace
 - **[11]** [ralph README](https://github.com/gemini-cli-extensions/ralph) "Options" — `--max-iterations <N>` (default 5); agent stops after N iterations regardless of completion
 - **[12]** [ralph-wiggum README](https://github.com/AsyncFuncAI/ralph-wiggum-extension) "Examples" — `--max-iterations 10`; same mechanism as ralph, forked implementation
 - **[13]** [kranthik/Ralph](https://github.com/kranthik123/Gemini-Ralph-Loop) commands — `/ralph:adjust -m 50` modifies iteration limit at runtime without restarting the loop
@@ -405,6 +405,185 @@ These tools enhance the loop/workflow ecosystem but serve different functions:
 </details>
 
 ---
+
+### 🔍 Hybrid Conductor Gap Analysis (v7 → v8 Roadmap)
+
+> Metrics where Hybrid Conductor scores **0** represent the highest-value improvement opportunities. Each gap includes the best-in-class implementation pattern to study.
+
+| Gap (Score = 0) | Best-in-Class | Implementation Pattern | Priority |
+|-----------------|---------------|----------------------|----------|
+| **Resume/Pause** | kranthik/Ralph | `/ralph:pause` writes iteration index + context to `.gemini/ralph-loop.local.md`; `/ralph:resume` reads it back and re-invokes agent from last checkpoint. **Pattern**: serialize `OrchestratorState` to JSON on pause, deserialize on resume. | High |
+| **Background Tasks** | self-command | `run_long_command` spawns subprocess in detached tmux pane, polls via `capture_pane`. **Pattern**: `subprocess.Popen` with `CREATE_NEW_PROCESS_GROUP` on Windows, poll via named pipe or file watcher. | Medium |
+| **Multi-Backend** | ralph-orch (7 backends) | `ralph.yml` declares backend configs; CLI swaps `--backend claude\|gemini\|codex`. **Pattern**: abstract `LLMProvider` interface with `generate(prompt, temperature)`, factory selects backend from config. | High |
+| **Terminal UI** | ralph-orch (ratatui) | Rust ratatui renders live progress, event stream, agent status. **Pattern**: Python equivalent via `rich.live` or `textual` — render iteration count, state, last hash, temperature. | Low |
+| **Config UI** (Partial→Full) | ralph-orch (31 presets + YAML) | `ralph.yml` with named presets overriding defaults. **Pattern**: add `config.yml` with `presets:` section, each overrides `complexity`, `max_iterations`, `temperature_schedule`. CLI: `--preset tdd`. | Medium |
+
+> **Metrics where HC scores Partial (improvable):**
+> - **Maturity** (2/6): increase release cadence, add changelog, publish to PyPI
+> - **Config UI** (2/6): add YAML config file support instead of CLI-only flags
+
+<details>
+<summary>📎 How to use this for implementation</summary>
+
+**For an AI agent performing gap analysis:**
+1. Read each gap row's "Implementation Pattern" column
+2. Clone the best-in-class repo (URL in evidence citations above)
+3. Study the specific file/function referenced
+4. Implement equivalent in `orchestrator.py` / `worker.py` following HC's existing patterns
+5. Add tests and verify via BIST
+
+**Priority key:** High = directly impacts scorecard by 6+ points; Medium = 2-4 points; Low = nice-to-have
+
+</details>
+
+---
+
+### 🗂️ MCP Tools Registry (Cross-Reference)
+
+> All MCP tools and libraries catalogued in [`docs/prompts/MCP_tools.md`](docs/prompts/MCP_tools.md), mapped to ecosystem adopters and sorted by relevance to autonomous coding workflows. Sources `[S:n]` reference the original research index.
+
+#### 🔴 Critical — Core infrastructure for any AI coding agent
+
+| MCP Tool/Library | Ecosystem Adopters | Value Assessment |
+|------------------|--------------------|------------------|
+| **Git** | Hybrid Conductor [60], conductor [61], kranthik/Ralph [62] | Foundation of all version control workflows; HC already uses MCP Git for branch isolation and safe commits [S:4,5] |
+| **Filesystem** | Hybrid Conductor (direct `Path`), self-command (tmux pane) | Essential for code editing, project scaffolding, and file management within security boundaries; HC should migrate from raw `Path` to MCP-standard access [S:4-6] |
+| **GitHub** | conductor [61], ralph-orch (planned) | Deep repo management, PR creation, issue tracking, and CI/CD interaction; closes HC's PR automation gap [S:1-4] |
+| **Sequential Thinking** | blueprint (plan step) [35], BMAD (agent reasoning) [36] | Structured multi-step reasoning for architectural decisions; enhances HC's PLANNING phase with branching thought chains [S:2,5,7,8] |
+| **Context7** | ralph-orch (docs), BMAD (agent context) | Prevents API hallucinations by providing real-time, version-specific library documentation; directly addresses HC's hallucination-proof context goal [S:2,4,7,11] |
+| **Openground** | **Hybrid Conductor** [37] | HC's native RAG engine — local LanceDB vector store for offline semantic code search; already integrated in `context_fetcher.py` [S:24] |
+
+#### 🟠 High — Significant workflow improvement
+
+| MCP Tool/Library | Ecosystem Adopters | Value Assessment |
+|------------------|--------------------|------------------|
+| **Playwright** | Hybrid Conductor (BIST tests) [26], blueprint (test step) [30] | HC already uses Playwright for dashboard testing; MCP server version would enable agents to self-verify frontend output [S:5,14] |
+| **Puppeteer** | blueprint (web scraping) [37] | Browser automation for E2E testing and visual regression; alternative to Playwright for Chrome-only environments [S:5,12,13] |
+| **Memory** | ralph-orch (persistent memories) [56], ralph (local.md) [53] | Knowledge graph for cross-session learning; would close HC's session memory gap — currently state is lost between runs [S:5] |
+| **CodeGraphContext** | BMAD (architect agent) [36] | Indexes codebase into graph DB for semantic dependency queries; enhances HC's context fetcher with call chain and hierarchy awareness [S:2,9,10] |
+| **SQLite / PostgreSQL** | ralph-orch (iteration history), BMAD (structured data) | Replace HC's flat-file state storage with queryable database; enables analytics on iteration history and loop detection patterns [S:5] |
+| **Sentry** | — (none currently) | Feeds crash reports and error logs directly to agent for automated root cause analysis; high-value for HC's VERIFYING phase [S:5] |
+| **Snyk** | — (none currently) | Embeds security scanning into verification workflow; catches vulnerabilities in AI-generated code before BIST passes [S:5] |
+
+#### 🟡 Medium — Valuable for specific workflows
+
+| MCP Tool/Library | Ecosystem Adopters | Value Assessment |
+|------------------|--------------------|------------------|
+| **Firecrawl** | BMAD (research agents) [36] | Converts entire websites into LLM-ready markdown; useful for HC's FULL complexity mode research step [S:2,4,15] |
+| **Fetch** | blueprint (research step) [35] | Lightweight URL-to-markdown conversion with robots.txt compliance; simpler alternative to Firecrawl for documentation gathering [S:5] |
+| **Jina Reader** | — (none currently) | Single-prefix URL conversion (`https://r.jina.ai/`); cleanest output for RAG ingestion; complements Openground [S:2,22] |
+| **Docker** | — (none currently) | Containerized execution environments; would enable HC to run BIST in isolated containers instead of subprocess [S:2,5] |
+| **OneCompiler** | — (none currently) | Code execution in 70+ languages; extends HC beyond Python-only BIST to multi-language verification [S:2,4,16] |
+| **SMART-E2B** | — (none currently) | Cloud-based sandboxed execution for JavaScript/Python; safer alternative to local subprocess for untrusted code [S:4,16] |
+| **Limelight MCP** | — (none currently) | Streams live React app data (renders, logs, network) to agent; high-value for HC dashboard self-debugging [S:2,4,17,18] |
+| **Grep MCP** | — (none currently) | Searches millions of GitHub repos for patterns; useful for finding implementation examples during code generation [S:4,20] |
+| **Bright Data** | — (none currently) | Anti-bot web scraping with markdown output; for documentation behind aggressive CDNs or CAPTCHAs [S:2,4,21] |
+| **AgentOps** | — (none currently) | Observability and tracing for AI agents; would add telemetry to HC's iteration loop for debugging agent behavior [S:5] |
+
+#### 🟢 Specialist — Framework or domain-specific
+
+| MCP Tool/Library | Ecosystem Adopters | Value Assessment |
+|------------------|--------------------|------------------|
+| **Figma** | blueprint (design step) [35] | Design-to-code from Figma layouts, components, and tokens; relevant only if HC targets frontend generation workflows [S:2,4,19] |
+| **scaffold-mcp** | — (none currently) | Code scaffolding following project conventions; would complement HC's spec-first mode with template-based project creation [S:23] |
+| **architect-mcp** | BMAD (architect agent) [36] | Design pattern enforcement and code quality review; could enhance HC's VERIFYING phase beyond BIST [S:23] |
+| **style-system** | — (none currently) | Design system tokens and component registry; prevents duplicate component creation in frontend tasks [S:23] |
+| **one-mcp** | — (none currently) | MCP proxy with progressive schema disclosure; reduces context window usage by loading tool definitions on demand [S:23] |
+| **Blueprint MCP** | blueprint [37] | Runs JavaScript in webpage context for deterministic data extraction; niche but powerful for web scraping tasks [S:25] |
+
+#### ⚪ Niche — Situational utility
+
+| MCP Tool/Library | Ecosystem Adopters | Value Assessment |
+|------------------|--------------------|------------------|
+| **GitLab** | — (none currently) | GitLab REST API for projects, issues, MRs, pipelines; only relevant if migrating from GitHub [S:4,16] |
+| **MongoDB** | — (none currently) | Natural language database interaction; relevant only for MongoDB-backed projects [S:4,16] |
+| **Kubernetes** | — (none currently) | Cluster management and monitoring; relevant for DevOps-focused agent workflows, not local coding [S:4] |
+| **Coolify** | — (none currently) | Self-hosted PaaS control; niche deployment automation for Coolify users [S:4,16] |
+| **Ember MCP** | — (none currently) | Ember.js-specific CLI commands and codemods; irrelevant outside Ember ecosystem [S:4,16] |
+| **MCP Server Builder** | — (meta-tool) | Access to MCP protocol specs and FastMCP docs; useful only when building new MCP servers [S:16] |
+| **Everything** | — (testing) | Reference/test MCP server; educational baseline for validating MCP client implementations [S:5] |
+
+<details>
+<summary>📎 Source Index (from MCP_tools.md)</summary>
+
+| Ref | Source |
+|-----|--------|
+| S:1 | [github/github-mcp-server](https://github.com/github/github-mcp-server) — GitHub's official MCP Server |
+| S:2 | [Reddit r/mcp](https://reddit.com/r/mcp) — "5 MCPs that genuinely made me quicker" |
+| S:3 | [tuannvm/slack-mcp-client](https://github.com/tuannvm/slack-mcp-client) — Slack ↔ MCP bridge |
+| S:4 | Comprehensive Directory of MCP Servers and FOSS Tools |
+| S:5 | [modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers) — Official MCP reference servers |
+| S:6 | [calebmwelsh/file-system-mcp-server](https://github.com/MCP-Mirror/calebmwelsh_file-system-mcp-server) |
+| S:7 | [upstash/context7](https://github.com/upstash/context7) — Up-to-date code docs for LLMs |
+| S:8 | [zalab-inc/mcp-sequentialthinking](https://github.com/zalab-inc/mcp-sequentialthinking) |
+| S:9 | [CodeGraphContext/CodeGraphContext](https://github.com/CodeGraphContext/CodeGraphContext) — Code graph indexer |
+| S:10 | [CodeGraphContext GitHub org](https://github.com/CodeGraphContext) |
+| S:11 | [upstash/context7-legacy](https://github.com/upstash/context7-legacy) |
+| S:12 | [puppeteer/puppeteer](https://github.com/puppeteer/puppeteer) — Chrome/Firefox automation |
+| S:13 | [Puppeteer docs](https://pptr.dev/) |
+| S:14 | [Playwright](https://playwright.dev/) — E2E testing framework |
+| S:15 | [mendableai/firecrawl](https://github.com/firecrawl/firecrawl) — Web → LLM-ready markdown |
+| S:16 | [Reddit r/mcp](https://reddit.com/r/mcp) — OneCompiler MCP Server thread |
+| S:17 | [Reddit r/reactnative](https://reddit.com/r/reactnative) — Limelight local-first desktop app |
+| S:18 | Limelight MCP Server bridge documentation |
+| S:19 | [GLips/Figma-Context-MCP](https://github.com/GLips/Figma-Context-MCP) — Figma layout for AI agents |
+| S:20 | [galprz/grep-mcp](https://github.com/galprz/grep-mcp) — GitHub code search via grep.app |
+| S:21 | [brightdata/brightdata-mcp](https://github.com/brightdata/brightdata-mcp) — Public web access with anti-bot |
+| S:22 | [jina-ai/reader](https://github.com/jina-ai/reader) — URL → LLM-friendly markdown |
+| S:23 | [AgiFlow/aicode-toolkit](https://github.com/AgiFlow/aicode-toolkit) — Toolkit for coding agents |
+| S:24 | [poweroutlet2/openground](https://github.com/poweroutlet2/openground) — On-device RAG |
+| S:25 | [Nick Felker, Medium](https://medium.com/) — "Scrappy agents in Gemini CLI with Blueprint MCP" |
+
+</details>
+
+---
+
+### 🔧 Other Noteworthy Tools & MCP Integrations
+
+> Tools, servers, and frameworks that could be integrated into or complement Hybrid Conductor. Each includes integration potential for gap closure.
+
+#### Agent Frameworks & Orchestrators
+
+| Tool | What It Does | Integration Potential | Link | Benefit & Verdict |
+|------|-------------|----------------------|------|-------------------|
+| **Cline** | Autonomous coding agent with diff-based editing, terminal commands, browser use | Study diff-editing UX for HC dashboard file preview | [cline/cline](https://github.com/cline/cline) | +2 pts (DX). **Study** — diff UX pattern worth adopting, not a dependency |
+| **Aider** | AI pair programming in terminal; git-aware, multi-file editing | Adopt `--auto-commits` pattern for HC Git workflow | [Aider-AI/aider](https://github.com/Aider-AI/aider) | +4 pts (Git Handling, DX). **Implement** — auto-commit pattern directly ports to `worker.py` |
+| **OpenHands** | Platform for AI software agents with sandbox execution | Study sandboxed execution model for safer BIST runs | [All-Hands-AI/OpenHands](https://github.com/All-Hands-AI/OpenHands) | +3 pts (Verification). **Study** — sandbox model improves BIST safety but adds Docker dependency |
+| **SWE-agent** | Princeton's agent for automated GitHub issue resolution | Benchmark HC against SWE-bench for academic credibility | [SWE-agent/SWE-agent](https://github.com/SWE-agent/SWE-agent) | +0 pts (credibility only). **Skip** — benchmarking exercise, no scorecard impact |
+| **Devon** | Open-source AI software engineer with multi-model support | Study multi-model orchestration for HC multi-backend gap | [entropy-research/Devon](https://github.com/entropy-research/Devon) | +6 pts (Multi-Backend). **Implement** — `LLMProvider` abstraction directly closes HC's 0-score gap |
+
+#### MCP Servers (Model Context Protocol)
+
+| MCP Server | Protocol | What It Provides | Integration Potential | Link | Benefit & Verdict |
+|------------|----------|-----------------|----------------------|------|-------------------|
+| **filesystem** | stdio | Read/write/search files with configurable allowed directories | Replace HC's direct `Path` operations with MCP-standard file access | [modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem) | +2 pts (DX, security). **Implement** — standardizes file ops, adds access control for free |
+| **github** | stdio | GitHub API (issues, PRs, repos, branches, file ops) | Add PR creation and issue tracking to HC Git workflow | [modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers/tree/main/src/github) | +6 pts (Git Handling). **Implement** — PR automation directly boosts scorecard |
+| **memory** | stdio | Knowledge graph with entities, relations, observations | Persistent learning across sessions (close BMAD gap) | [modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers/tree/main/src/memory) | +3 pts (State Mgmt). **Implement** — cross-session learning is a competitive differentiator |
+| **sequential-thinking** | stdio | Dynamic problem-solving with branching thought chains | Enhance HC planning phase with structured reasoning | [modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers/tree/main/src/sequentialthinking) | +3 pts (Planning). **Implement** — upgrades PLANNING from linear to branching reasoning |
+| **postgres / sqlite** | stdio | Database querying and schema inspection | Store iteration history in SQLite instead of flat files | [modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers/tree/main/src/sqlite) | +3 pts (State Mgmt). **Implement** — queryable history enables iteration analytics |
+| **puppeteer** | stdio | Browser automation (navigate, screenshot, click, type) | Add browser testing to HC BIST for full-stack verification | [modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers/tree/main/src/puppeteer) | +4 pts (Verification). **Implement** — extends BIST from Python-only to full-stack |
+| **brave-search** | stdio | Web search via Brave API with filtering | Research step in FULL complexity mode for up-to-date docs | [modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers/tree/main/src/brave-search) | +1 pt (DX). **Defer** — useful but requires API key; Openground covers local docs |
+| **fetch** | stdio | Web content fetching with robots.txt compliance | Fetch library docs/examples during code generation | [modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers/tree/main/src/fetch) | +1 pt (DX). **Defer** — lightweight but overlaps with Context7 and Openground |
+| **everything** | stdio | Reference/test MCP server with all protocol features | Testing and validation of HC's MCP client | [modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers/tree/main/src/everything) | +0 pts (testing only). **Skip** — development aid, no production value |
+
+#### Testing & Quality Tools
+
+| Tool | What It Does | Integration Potential | Link | Benefit & Verdict |
+|------|-------------|----------------------|------|-------------------|
+| **Playwright MCP** | Browser automation via MCP protocol | Replace subprocess-based BIST with MCP-driven browser tests | [playwright-community/mcp](https://github.com/playwright-community/mcp) | +4 pts (Verification). **Implement** — MCP-native testing aligns with HC's architecture |
+| **pytest-mcp** | Run pytest suites via MCP | Standardize HC test execution through MCP | [calvernaz/pytest-mcp](https://github.com/calvernaz/pytest-mcp) | +2 pts (Verification). **Defer** — nice standardization but BIST already works |
+| **semgrep** | Static analysis with custom rules | Add SAST scanning to HC verification phase | [semgrep/semgrep](https://github.com/semgrep/semgrep) | +4 pts (Verification, security). **Implement** — catches vulnerability classes BIST misses |
+
+#### Notification & Human-in-the-Loop
+
+| Tool | What It Does | Integration Potential | Link | Benefit & Verdict |
+|------|-------------|----------------------|------|-------------------|
+| **ntfy** | Push notifications via HTTP (self-hosted) | Notify user when long HC tasks complete | [binwiederhier/ntfy](https://github.com/binwiederhier/ntfy) | +2 pts (DX). **Implement** — 10 lines of Python, zero dependencies, immediate UX win |
+| **Telegram Bot API** | Bidirectional messaging | Port ralph-orch's RObot pattern for HC approval gates | [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot) | +3 pts (Human-in-the-Loop). **Defer** — powerful but requires bot token setup per user |
+| **Slack MCP** | Slack integration via MCP | Team notifications for HC task completion/failures | [modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers/tree/main/src/slack) | +2 pts (DX). **Defer** — team-oriented; HC is currently single-user focused |
+
+---
+
 
 ## 📂 Project Structure
 
