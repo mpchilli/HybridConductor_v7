@@ -469,22 +469,61 @@ if __name__ == "__main__":
         parser.add_argument("--complexity", type=str, default="streamlined", choices=["fast", "streamlined", "full"], help="Complexity mode")
         parser.add_argument("--preset", type=str, help="Use a named configuration preset")
         parser.add_argument("--resume", action="store_true", help="Resume from last saved session")
+        parser.add_argument("--background", action="store_true", help="Run in a detached background process")
         
         args = parser.parse_args()
         
         project_root = Path.cwd()
-        orchestrator = Orchestrator(project_root, preset_name=args.preset)
         
-        if args.resume:
-            if orchestrator.resume():
-                orchestrator.run(prompt="") # Prompt ignored during resume
+        if args.background:
+            # Prevent recursion by checking for an environment variable
+            if os.environ.get("HC_BACKGROUND_CHILD"):
+                # We are the child process, run normally
+                orchestrator = Orchestrator(project_root, preset_name=args.preset)
+                if args.resume:
+                    orchestrator.resume()
+                orchestrator.run(args.prompt or "")
             else:
-                sys.exit(1)
-        elif args.prompt:
-            orchestrator.set_complexity_mode(args.complexity)
-            orchestrator.run(args.prompt)
+                # We are the parent, spawn the child
+                import subprocess
+                DETACHED_PROCESS = 0x00000008
+                CREATE_NEW_PROCESS_GROUP = 0x00000200
+                
+                log_file = project_root / "logs" / f"background_{datetime.now().strftime('%H%M%S')}.log"
+                log_file.parent.mkdir(parents=True, exist_ok=True)
+                
+                cmd = [sys.executable, __file__]
+                if args.prompt: cmd.extend(["--prompt", args.prompt])
+                if args.preset: cmd.extend(["--preset", args.preset])
+                if args.resume: cmd.append("--resume")
+                cmd.append("--background")
+                
+                env = os.environ.copy()
+                env["HC_BACKGROUND_CHILD"] = "1"
+                
+                with open(log_file, "w") as f:
+                    subprocess.Popen(
+                        cmd,
+                        env=env,
+                        stdout=f,
+                        stderr=f,
+                        creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+                        close_fds=True
+                    )
+                print(f" Orchestrator started in background. Logs: {log_file}")
+                sys.exit(0)
         else:
-            parser.print_help()
+            orchestrator = Orchestrator(project_root, preset_name=args.preset)
+            if args.resume:
+                if orchestrator.resume():
+                    orchestrator.run(prompt="")
+                else:
+                    sys.exit(1)
+            elif args.prompt:
+                orchestrator.set_complexity_mode(args.complexity)
+                orchestrator.run(args.prompt)
+            else:
+                parser.print_help()
     else:
         # Run internal tests if no arguments provided
         print(" Running orchestrator.py comprehensive tests...\n")
