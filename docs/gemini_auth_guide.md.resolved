@@ -1,0 +1,48 @@
+# Gemini Authentication Guide: OAuth & Piggybacking
+
+Hybrid Conductor now supports several ways to connect to the Gemini API beyond just `GOOGLE_API_KEY`.
+
+## 1. 🐖 Piggybacking (Existing Session)
+If you have the Google Cloud SDK (`gcloud`) installed, you can reuse your existing login session. This is the fastest method.
+
+### Instructions:
+1.  Open your terminal (`pwsh` or `cmd`).
+2.  Run the following command:
+    ```powershell
+    gcloud auth application-default login
+    ```
+3.  Follow the browser instructions to log in.
+4.  Hybrid Conductor will automatically detect these credentials and use them.
+
+---
+
+## 2. 🔑 Standard OAuth (Client Secret)
+If you don't use `gcloud`, you can create a dedicated OAuth client ID.
+
+### Step 1: Create OAuth Credentials
+1.  Go to the [Google Cloud Console Credentials Page](https://console.cloud.google.com/apis/credentials).
+2.  Select (or create) a project.
+3.  Click **+ CREATE CREDENTIALS** > **OAuth client ID**.
+4.  Select **Desktop app** as the application type.
+5.  Name it (e.g., "Hybrid Conductor") and click **Create**.
+6.  A JSON file will be provided. Download it and save it as `client_secret.json`.
+
+### Step 2: Configure Hybrid Conductor
+1.  Determine the full path to your `client_secret.json`.
+2.  Set the `GOOGLE_CLIENT_SECRET_PATH` environment variable:
+    ```powershell
+    $env:GOOGLE_CLIENT_SECRET_PATH = "C:\path\to\your\client_secret.json"
+    ```
+3.  Run Hybrid Conductor. It will prompt you in the browser for a one-time login and save a `token.json` in the [state/](file:///c:/Users/ukchim01/Downloads/Ai%20Tools/HybridConductor_v7/tui.py#72-76) directory for future use.
+
+---
+
+## FAQ
+**Q: Can I still use an API Key?**
+A: Yes! The system checks in this order: `API_KEY` (env) -> `ADC` (gcloud session) -> `OAuth Client Secret`.
+
+**Q: Where are the tokens stored?**
+A: Authorized tokens are stored in `state/token.json` for Client Secret mode. ADC tokens are stored in your standard Google Cloud config directory.
+
+**Q: "Gemini API is not enabled" error?**
+A: Ensure the **Generative Language API** is enabled in your Google Cloud project.

@@ -182,3 +182,37 @@ To increase system resilience against hallucinations and edge-case environment f
 ### 10.4 LLM Application Evaluation (Ragas / G-Eval)
 - **Concept**: Use an LLM to evaluate the outputs of another LLM based on "faithfulness" and "relevance" metrics.
 - **Benefit**: Essential for verifying that the "Simulation Mode" doesn't produce nonsensical code that still technically passes Python syntax checks.
+
+## 11. Modular Package Architecture (v8.0.3)
+
+### 11.1 The Package Transition
+- **Issue**: Root-level monolithic scripts (`orchestrator.py`, `worker.py`) became difficult to maintain and test in isolation.
+- **Fix**: Reorganized into a standard Python package structure (`hybridconductor/`).
+    - **Wrappers**: Root scripts became thin CLI wrappers.
+    - **Packages**: Logic moved to submodules (`hybridconductor.orchestrator`, `hybridconductor.worker`).
+- **Lesson**: Standardizing on a package structure early simplifies dependency management and enables cleaner cross-module imports (e.g., using `from hybridconductor.core import ...`).
+
+### 11.2 Orchestrator Shutdown & File Locks
+- **Issue**: Intermittent `PermissionError` when cleaning up temporary directories on Windows.
+- **Root Cause**: Open logging file handlers were keeping locks on log files within the directories being deleted.
+- **Fix**: Implemented `Orchestrator.shutdown()` to explicitly close and remove all logger handlers.
+- **Lesson**: Destructors (`__del__`) are unreliable for resource cleanup in Python; explicit `shutdown()` methods are mandatory for deterministic resource release on Windows.
+
+## 12. Advanced LLM Authentication (Gemini OAuth)
+
+### 12.1 OAuth 2.0 Integration
+- **Issue**: Relying solely on `GOOGLE_API_KEY` is restrictive for users with enterprise or service-account workflows.
+- **Fix**: Integrated `google_auth_oauthlib`. `GeminiProvider` now checks for `GOOGLE_CLIENT_SECRET_PATH` and initiates an interactive web flow if an API key is missing.
+- **Lesson**: Abstracting the `LLMProvider` initialization into a factory allows for complex multi-modal authentication strategies without polluting the core state machine logic.
+
+### 12.2 Token Persistence
+- **Issue**: Users were prompted to re-authenticate via browser on every session.
+- **Fix**: Implemented token caching to `state/token.json`. Added logic to refresh expired tokens using `google.auth.transport.requests.Request`.
+- **Lesson**: UX in CLI tools requires minimizing friction; persistent "session tokens" are critical for developer focus during long orchestration tasks.
+
+## 13. Organizational Persistence Patterns
+
+### 13.1 Timestamped Artifacts
+- **Issue**: Task outputs were overwriting each other in the root `tests/` directory, making it hard to track iteration history.
+- **Fix**: Implemented a nested directory structure: `tests/YYYYMMMdd/HHMMSS_taskid/`.
+- **Lesson**: Autonomous agents produce high volume output; flat structures lead to data loss. Hierarchical, timestamped storage is essential for auditing and rollback capabilities.

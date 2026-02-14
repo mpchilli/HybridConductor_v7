@@ -1,4 +1,4 @@
-# Hybrid Conductor v7.2.8
+# Hybrid Conductor v8.0.3
 **Windows-Native AI Coding Agent**
 
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://www.microsoft.com)
@@ -40,9 +40,9 @@ Agents fail when they guess what your code looks like. We give them the actual c
 ### 3. Isolated Build Environments
 We never touch your `main` branch until the code works.
 
-- **Mechanism**: The `Worker` process uses an internal **MCP (Model Context Protocol) Server** to drive Git. It creates a temporary branch `task-{uuid}` for every single request.
-- **Example**: A request to "refactor the API" happens in `task-a1b9`. If the BIST (Built-In Self-Test) fails, the branch is discarded. 
-- **Outcome**: Your `main` branch is **always** deployable. No broken commits.
+-   **Mechanism**: The `Worker` process uses an internal **MCP (Model Context Protocol) Server** to drive Git. It creates a temporary branch `task-{uuid}` for every single request. verified code is persisted to **timestamped subdirectories** (`tests/YYYYMMMdd/HHMMSS_taskid/`) for auditability.
+-   **Example**: A request to "refactor the API" happens in `task-a1b9`. If the BIST (Built-In Self-Test) fails, the branch is discarded. 
+-   **Outcome**: Your `main` branch is **always** deployable. No broken commits. Full iteration history preserved.
 
 ### 4. Deterministic State Machine
 Event buses are brittle. We use a linear, single-threaded brain.
@@ -113,6 +113,13 @@ python orchestrator.py --resume
 ```powershell
 python orchestrator.py --prompt "Fix typo in logging" --complexity fast --background
 ```
+
+### **🔑 Gemini OAuth Setup (New)**
+If you don't have a `GOOGLE_API_KEY`, you can use standard Google OAuth:
+1.  **Client Secret**: Download your `client_secret.json` from Google Cloud Console.
+2.  **Environment**: Set `GOOGLE_CLIENT_SECRET_PATH` to the file path.
+3.  **Authentication**: Run the orchestrator. A local browser will launch for a one-time login.
+4.  **Persistence**: Authentication is saved to `state/token.json` for future silent use.
 
 ### **🔧 Option E: Manual Launch (Debugging)**
 If `start_app.py` fails or you need direct access:
@@ -626,10 +633,14 @@ These tools enhance the loop/workflow ecosystem but serve different functions:
 
 ```text
 hybrid_conductor/
-├── orchestrator.py      # The Brain (State Machine)
-├── worker.py            # The Hands (Git + Subprocess)
-├── loop_guardian.py     # The Referee (SHA-256 Hashing)
-├── context_fetcher.py   # The Memory (Openground + Regex)
+├── hybridconductor/     # Core Package Submodules
+│   ├── core/            # Logic modules (Guardian, SSL)
+│   ├── worker/          # Task Runner logic
+│   ├── orchestrator/    # FSM Logic
+│   ├── mcp/             # Git MCP Client
+│   └── utils/           # Windows-specific helpers
+├── orchestrator.py      # CLI Wrapper (The Brain)
+├── worker.py            # CLI Wrapper (The Hands)
 ├── setup.py             # The Installer (Windows Native)
 ├── backend/             # The Body (Flask + React)
 └── scripts/
