@@ -66,10 +66,11 @@ class Orchestrator:
     - Matches single-threaded execution model of Python
     """
     
-    def __init__(self, project_root: Path, preset_name: Optional[str] = None):
+    def __init__(self, project_root: Path, preset_name: Optional[str] = None, debug: bool = False):
         self.project_root = project_root.resolve()
         self.state_dir = project_root / "state"
         self.logs_dir = project_root / "logs"
+        self.debug = debug
         self.config = self._load_config(preset_name)
         self.current_state = State.PLANNING
         self.loop_guardian = LoopGuardian(self.config)
@@ -77,7 +78,7 @@ class Orchestrator:
         self.complexity_mode = ComplexityMode(self.config.get("default_complexity", "streamlined"))
         
         # Initialize TUI
-        self.tui_enabled = not bool(os.environ.get("HC_BACKGROUND_CHILD"))
+        self.tui_enabled = not bool(os.environ.get("HC_BACKGROUND_CHILD")) and not self.debug
         self.tui = TerminalUI() if self.tui_enabled else None
         
         # Initialize LLM Provider
@@ -296,6 +297,25 @@ class Orchestrator:
         except Exception as e:
             self._log_event('ERROR', f"Fatal error in run loop: {e}")
             self.current_state = State.FAILED
+            
+            # If TUI is on, stop it first to expose the console
+            if self.tui_enabled and self.tui:
+                self.tui.set_state("FAILED")
+                time.sleep(1)
+                self.tui.stop()
+            
+            if self.debug:
+                print("\n" + "="*60)
+                print(" DEBUG MODE: FATAL EXCEPTION TRACEBACK")
+                print("="*60)
+                import traceback
+                traceback.print_exc()
+                print("="*60 + "\n")
+            else:
+                print(f"\n Fatal Error: {e}")
+                print(" Run with --debug to see full traceback.\n")
+            
+            # Re-raise so background logs catch it too
             raise e
         finally:
             print(f" Orchestration completed with state: {self.current_state.value}")
@@ -497,6 +517,7 @@ if __name__ == "__main__":
         parser.add_argument("--preset", type=str, help="Use a named configuration preset")
         parser.add_argument("--resume", action="store_true", help="Resume from last saved session")
         parser.add_argument("--background", action="store_true", help="Run in a detached background process")
+        parser.add_argument("--debug", action="store_true", help="Enable debug mode (disable TUI, expose tracebacks)")
         
         args = parser.parse_args()
         
@@ -523,6 +544,7 @@ if __name__ == "__main__":
                 if args.prompt: cmd.extend(["--prompt", args.prompt])
                 if args.preset: cmd.extend(["--preset", args.preset])
                 if args.resume: cmd.append("--resume")
+                if args.debug: cmd.append("--debug")
                 cmd.append("--background")
                 
                 env = os.environ.copy()
@@ -540,7 +562,7 @@ if __name__ == "__main__":
                 print(f" Orchestrator started in background. Logs: {log_file}")
                 sys.exit(0)
         else:
-            orchestrator = Orchestrator(project_root, preset_name=args.preset)
+            orchestrator = Orchestrator(project_root, preset_name=args.preset, debug=args.debug)
             if args.resume:
                 if orchestrator.resume():
                     orchestrator.run(prompt="")

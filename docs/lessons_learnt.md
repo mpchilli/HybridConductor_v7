@@ -160,3 +160,25 @@ During the v7.2.8 audit, several recurring bugs were identified and traced to co
 - **Observation**: `NameError: name 'resp' is not defined`.
 - **Root Cause**: Accessing variables defined in `with` blocks (like `resp = urlopen(...)`) after an exception occurs inside the `with` header. If `urlopen` fails, `resp` is never bound, but the `except` block might still try to use it for logging.
 - **Mitigation**: Initialize variables to `None` before the `with` block or handle errors within a dedicated scope where variables are guaranteed to exist.
+
+## 10. Advanced Robustness Testing Methodologies
+
+To increase system resilience against hallucinations and edge-case environment failures, the following methodologies have been integrated as of v7.2.8:
+
+### 10.1 Property-Based Testing (Hypothesis)
+- **Concept**: Instead of specific examples, define "properties" that must always hold true (e.g., "Normalization should be idempotent").
+- **Benefit**: Discovers edge cases in path handling (especially Windows vs Linux) and character encoding that human testers often miss.
+- **Implemented in**: `tests/robustness/test_hashing.py`.
+
+### 10.2 API Interaction Mocking (VCR.py)
+- **Concept**: Record real LLM HTTP interactions once and "replay" them for unit tests.
+- **Benefit**: Ensures tests are deterministic, fast, and don't fail due to 429 Rate Limit errors or transient network issues during BIST runs.
+- **Implemented in**: `tests/robustness/test_llm_mock.py`.
+
+### 10.3 Mutation Testing (MutPy)
+- **Concept**: Deliberately inject bugs (mutants) into the code to see if the current test suite catches them.
+- **Benefit**: Measures test quality rather than just coverage. If a mutant survives, the tests are insufficient.
+
+### 10.4 LLM Application Evaluation (Ragas / G-Eval)
+- **Concept**: Use an LLM to evaluate the outputs of another LLM based on "faithfulness" and "relevance" metrics.
+- **Benefit**: Essential for verifying that the "Simulation Mode" doesn't produce nonsensical code that still technically passes Python syntax checks.

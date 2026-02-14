@@ -281,6 +281,21 @@ def execute_task(
         except subprocess.TimeoutExpired:
             mcp_process.kill()
         print(" MCP server terminated")
+        
+        # Cleanup temporary task directory with retry to handle Windows file locks
+        import shutil
+        import time
+        max_retries = 3
+        for i in range(max_retries):
+            try:
+                if tmp_dir.exists():
+                    shutil.rmtree(tmp_dir)
+                break
+            except PermissionError:
+                if i < max_retries - 1:
+                    time.sleep(1)
+                else:
+                    print(f" Warning: Could not fully clean up {tmp_dir} due to file lock.")
 
 
 def _log_ai_conversation(role: str, message: str) -> None:

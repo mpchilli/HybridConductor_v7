@@ -653,3 +653,28 @@ We are actively researching **OpenHands** as a sandboxed execution engine. Our "
 3.  **Safety**: We will implement a custom `Sandbox` class that wraps OpenHands' process execution with our `LoopGuardian` logic.
 
 *Reference: [`docs/info_sources/openhands_dockerless.md`](docs/info_sources/openhands_dockerless.md)*
+
+---
+
+## 🚧 Known Oracle & Environment Issues
+
+Developing on native Windows presents unique challenges that we are currently tracking:
+
+### 1. SSL/TLS Handshake Failures
+- **Symptom**: `SSLV3_ALERT_HANDSHAKE_FAILURE` when connecting to Telegram API.
+- **Cause**: Outdated root certificates or incompatible cipher negotiation on some Windows builds.
+- **Current Status**: **Telegram notifications are disabled by default** while we research a library-independent fix. Discord remains the recommended notification channel.
+
+### 2. File Handle Locking (WinError 32)
+- **Symptom**: `PermissionError` when deleting temporary task directories.
+- **Cause**: Windows prevents file deletion while another process (e.g., SQLite or a background child) still has an open handle.
+- **Current Status**: Investigating automated handle release and brief "cool-down" periods for BIST cleanup logic.
+
+### 3. Orchestrator Stability
+- **Symptom**: CLI task terminates after initialization with no file output.
+- **Cause**: Potential TUI race condition or silent exception in the background worker loop.
+- **Current Status**: High Priority. Implementing `--debug` mode to expose hidden tracebacks.
+
+---
+**Auditor Signature**: Antigravity
+**Last Review**: 2026-02-14
