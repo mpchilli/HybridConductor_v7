@@ -1,6 +1,6 @@
-﻿# Plan for: write a test.txt file in the root, with value of pi in it.
+﻿# Plan for: perform a full test of every funciton of the dashbaord
 ## Phase 1: Execution
-- [ ] Decompose request: write a test.txt file in the root, with value of pi in it.
+- [ ] Decompose request: perform a full test of every funciton of the dashbaord
 - [ ] Implement atomic component
 - [ ] Verify component via BIST
 

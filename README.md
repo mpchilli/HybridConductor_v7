@@ -1,4 +1,4 @@
-# Hybrid Conductor v7.1.6
+# Hybrid Conductor v7.2.8
 **Windows-Native AI Coding Agent**
 
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://www.microsoft.com)
@@ -76,9 +76,43 @@ No Python installed? No problem.
 - **Build It**: `python scripts/build/build_exe.py`
 
 ### **🦍 Option D: CLI Headless Mode**
-For CI/CD pipelines or hard-core terminal users.
+For CI/CD pipelines, hard-core terminal users, or automated scripting.
+
 ```powershell
 python orchestrator.py --prompt "Refactor src/utils.py" --complexity fast
+```
+
+#### **Available Arguments**
+
+| Argument | Description |
+| :--- | :--- |
+| `--prompt "..."` | **Main Task**: The natural language instruction for the AI (e.g., "Add unit tests for auth.py"). |
+| `--complexity` | **Workflow Depth**: Choose between `fast` (direct), `streamlined` (TDD), or `full` (Spec-first). |
+| `--preset` | **Profile**: Load a named configuration from the `presets/` directory (e.g., `tdd`, `refactor`). |
+| `--resume` | **Persistence**: Resume from the last saved `session.json` state in the `state/` directory. |
+| `--background` | **Detach**: Spawn a detached Windows process. Output is redirected to `logs/background_HHMMSS.log`. |
+
+#### **Complexity Mode Comparison**
+
+-   **`fast`**: Skips formal planning. Goes straight to the Build-Implement-Verify loop. Best for simple one-liners.
+-   **`streamlined`**: *(Default)* Minimal spec + TDD workflow. Balanced speed and safety.
+-   **`full`**: Generates a formal `spec.md` and `plan.md` first. Requires strict verification gates.
+
+#### **Advanced Examples**
+
+**1. Running a high-stakes refactor with full planning:**
+```powershell
+python orchestrator.py --prompt "Refactor core engine" --complexity full
+```
+
+**2. Resuming an interrupted session:**
+```powershell
+python orchestrator.py --resume
+```
+
+**3. Running a quick fix in the background:**
+```powershell
+python orchestrator.py --prompt "Fix typo in logging" --complexity fast --background
 ```
 
 ### **🔧 Option E: Manual Launch (Debugging)**
@@ -254,8 +288,8 @@ This project didn't appear in a vacuum. It stands on the shoulders of:
 |------------------|------------------|------------|----------------|-----------|------------------|-----------|--------------|--------------|------|
 | Monitoring/UI    | ✅/dashboard [63]| ✅/web+TUI [66]| ✅/monitor [65]| Partial [64]| ❌ [3]       | ❌ [7]    | Partial [54] | ✅/pane [67] | ❌ [9] |
 | Simple Tasks     | ✅/FAST [42]     | ✅/run [71]| ✅/start [70]  | ✅/track [27]| ✅/one-cmd [68]| Partial [35]| ✅/one-cmd [69]| ✅/cmd [72]| Partial [73] |
-| Resume/Pause     | ❌               | ❌ [6]     | ✅/pause [74]  | ❌ [2]    | ❌ [3]           | ✅/resume [75]| ❌ [4]   | ✅/watch [76]| ❌ [9] |
-| Background Tasks | ✅/detached [79]| ❌ [6]     | ❌ [5]         | ❌ [2]    | ❌ [3]           | ❌ [7]    | ❌ [4]       | ✅/long [77] | ❌ [9] |
+| Resume/Pause     | ✅/session [74] | ❌ [6]     | ✅/pause [74]  | ❌ [2]    | ❌ [3]           | ✅/resume [75]| ❌ [4]   | ✅/watch [76]| ❌ [9] |
+| Background Tasks | ✅/detached [79] | ❌ [6]     | ❌ [5]         | ❌ [2]    | ❌ [3]           | ❌ [7]    | ❌ [4]       | ✅/long [77] | ❌ [9] |
 | Multi-Backend    | ✅/providers [80]| ✅/7 [78]  | ❌ [5]         | ❌ [2]    | ❌ [3]           | ❌ [7]    | ❌ [4]       | ❌ [8]       | ❌ [9] |
 
 <details>
@@ -372,8 +406,8 @@ These tools enhance the loop/workflow ecosystem but serve different functions:
 | **DEV EXPERIENCE** (30)|   | 15               | **21** 🥇  | **21** 🥇      | 9         | 6                | 8         | 9            | 24           | 2    |
 | Monitoring/UI         | 3  | 9                | 9          | 9              | 3         | 0                | 0         | 3            | 9            | 0    |
 | Simple Tasks          | 2  | 6                | 6          | 6              | 6         | 6                | 2         | 6            | 6            | 2    |
-| Resume/Pause          | 2  | 0                | 0          | 6              | 0         | 0                | 6         | 0            | 6            | 0    |
-| Background Tasks      | 1  | 0                | 0          | 0              | 0         | 0                | 0         | 0            | 3            | 0    |
+| Resume/Pause          | 2  | 6                | 0          | 6              | 0         | 0                | 6         | 0            | 6            | 0    |
+| Background Tasks      | 1  | 3                | 0          | 0              | 0         | 0                | 0         | 0            | 3            | 0    |
 | Multi-Backend         | 2  | 0                | 6          | 0              | 0         | 0                | 0         | 0            | 0            | 0    |
 | **UI/UX** (39)        |    | **29**           | **39** 🥇  | 21             | 14        | 2                | 9         | 5            | 15           | 11   |
 | Web Dashboard         | 3  | 9                | 9          | 0              | 0         | 0                | 0         | 0            | 0            | 0    |
@@ -416,12 +450,8 @@ These tools enhance the loop/workflow ecosystem but serve different functions:
 
 ### 🔍 Hybrid Conductor Gap Analysis (v7 → v8 Roadmap)
 
-> Metrics where Hybrid Conductor scores **0** represent the highest-value improvement opportunities. Each gap includes the best-in-class implementation pattern to study.
-
 | Gap (Score = 0) | Best-in-Class | Implementation Pattern | Priority |
 |-----------------|---------------|----------------------|----------|
-| **Resume/Pause** | kranthik/Ralph | `/ralph:pause` writes iteration index + context to `.gemini/ralph-loop.local.md`; `/ralph:resume` reads it back and re-invokes agent from last checkpoint. **Pattern**: serialize `OrchestratorState` to JSON on pause, deserialize on resume. | High |
-| **Background Tasks** | self-command | `run_long_command` spawns subprocess in detached tmux pane, polls via `capture_pane`. **Pattern**: `subprocess.Popen` with `CREATE_NEW_PROCESS_GROUP` on Windows, poll via named pipe or file watcher. | Medium |
 | **Multi-Backend** | ralph-orch (7 backends) | `ralph.yml` declares backend configs; CLI swaps `--backend claude\|gemini\|codex`. **Pattern**: abstract `LLMProvider` interface with `generate(prompt, temperature)`, factory selects backend from config. | High |
 | **Terminal UI** | ralph-orch (ratatui) | Rust ratatui renders live progress, event stream, agent status. **Pattern**: Python equivalent via `rich.live` or `textual` — render iteration count, state, last hash, temperature. | Low |
 | **Config UI** (Partial→Full) | ralph-orch (31 presets + YAML) | `ralph.yml` with named presets overriding defaults. **Pattern**: add `config.yml` with `presets:` section, each overrides `complexity`, `max_iterations`, `temperature_schedule`. CLI: `--preset tdd`. | Medium |
