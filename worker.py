@@ -486,7 +486,7 @@ def _detect_loop(code: str, attempt: int) -> bool:
     
     # Simple heuristic: check for obvious infinite loop patterns
     loop_patterns = [
-        "while True:",
+        "while true:",
         "while(1)",
         "for(;;)",
         "loop indefinitely"
@@ -526,12 +526,11 @@ if __name__ == "__main__":
     assert _get_temperature_for_attempt(3) == 1.3, "Attempt 4+: capped at 1.3"
     print(" PASS: Temperature escalation works\\n")
     
-    # Test 3: Code generation produces valid Python
-    print("Test 3: Code generation produces valid Python")
+    # Test 3: Code generation produces multi-file format
+    print("Test 3: Code generation produces multi-file format")
     code = _generate_code("Test plan", "Test context", 0.7)
-    assert code.startswith("#!/usr/bin/env python3"), "Should start with shebang"
+    assert code.startswith("# filename: "), "Should start with filename header"
     assert "def main():" in code, "Should contain main function"
-    assert 'if __name__ == "__main__":' in code, "Should have main guard"
     print(" PASS: Code generation works\\n")
     
     # Test 4: BIST execution

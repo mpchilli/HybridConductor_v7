@@ -120,17 +120,21 @@ class ContextFetcher:
         results = []
         query_lower = query.lower()
         
-                # Allowed extensions
-                extensions = {'.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.cpp', '.c', '.h', '.cs', '.rb', '.go', '.rs', '.php', '.html', '.css', '.md', '.json', '.yml', '.yaml'}
+        try:
+            # Allowed extensions
+            extensions = {'.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.cpp', '.c', '.h', '.cs', '.rb', '.go', '.rs', '.php', '.html', '.css', '.md', '.json', '.yml', '.yaml'}
+            
+            for root, dirs, files in os.walk(str(self.project_root)):
+                # Skip common directories
+                dirs[:] = [d for d in dirs if d not in ['.git', '__pycache__', 'node_modules', 'venv', 'env', '.venv']]
                 
                 for file in files:
                     file_path = Path(root) / file
                     
                     # Check if file has allowed extension (case-insensitive)
-                    if file_path.suffix.lower() not in extensions:
+                    ext = file_path.suffix.lower()
+                    if ext not in extensions:
                         continue
-                    
-                    file_path = Path(root) / file
                     
                     try:
                         content = file_path.read_text(encoding="utf-8", errors="ignore")
@@ -226,13 +230,13 @@ if __name__ == "__main__":
         project_root.mkdir()
         
         # Create various file types
-        (project_root / "code.py").write_text("# Python code")
+        (project_root / "code.py").write_text("# Python code with key")
         (project_root / "data.json").write_text('{"key": "value"}')
-        (project_root / "README.md").write_text("# Documentation")
+        (project_root / "README.md").write_text("# Documentation for key")
         (project_root / "binary.exe").write_bytes(b"\x00\x01\x02")
         
         fetcher = ContextFetcher(project_root)
-        result = fetcher._regex_fallback_search("code")
+        result = fetcher._regex_fallback_search("key")
         
         assert "code.py" in result, "Should include .py files"
         assert "data.json" in result, "Should include .json files"

@@ -1,6 +1,6 @@
-﻿# Plan for: perform a full test of every funciton of the dashbaord
+﻿# Plan for: write pi to 20dp into tests/test.txt
 ## Phase 1: Execution
-- [ ] Decompose request: perform a full test of every funciton of the dashbaord
+- [ ] Decompose request: write pi to 20dp into tests/test.txt
 - [ ] Implement atomic component
 - [ ] Verify component via BIST
 

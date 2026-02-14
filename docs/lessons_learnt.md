@@ -136,3 +136,27 @@
 - **Issue**: `NameError: name 'resp' is not defined` when an exception occurs inside or immediately before a `with urlopen(...) as resp:` block.
 - **Cause**: If an exception occurs during the `urlopen` call itself, the name `resp` is never bound.
 - **Fix**: Referenced `resp` only within the scope of the `with` block, or ensured any error handlers don't assume the existence of the response object if the connection itself failed.
+
+## 9. Bug Density Analysis & Root Causes
+
+During the v7.2.8 audit, several recurring bugs were identified and traced to core platform and synchronization issues.
+
+### 9.1 Environment & Protocol Mismatch
+- **Observation**: `SSLV3_ALERT_HANDSHAKE_FAILURE` when connecting to Telegram API from Windows.
+- **Root Cause**: Windows-native Python often has stricter or older root certificates than Linux/WSL. The default SSL/TLS negotation can fail if the server requires specific ciphers or if the local environment restricts TLS 1.3 protocol versions.
+- **Mitigation**: Use `ssl.create_default_context()` and explicitly enforce `ssl.PROTOCOL_TLS_CLIENT` to maximize compatibility.
+
+### 9.2 Windows File Handle Locking (Race Conditions)
+- **Observation**: `PermissionError: [WinError 32]` during BIST cleanup.
+- **Root Cause**: Windows strictly enforces file locks. In multi-threaded or subprocess-heavy environments (like the Web Dashboard bridge), parent processes often attempt to delete temporary files/databases before child handles or SQLite connections are fully released.
+- **Mitigation**: Ensure all context managers (`with` blocks) are strictly scoped and add brief `time.sleep()` before cleanup operations in tests.
+
+### 9.3 BIST / Implementation Synchronization
+- **Observation**: `AssertionError: Should start with shebang` in `worker.py`.
+- **Root Cause**: The BIST tests used local mocks that were not updated when the core logic was "enhanced" for multi-file generation. This leads to false negatives where perfectly functional code fails its own self-test due to documentation/test rot.
+- **Mitigation**: Treat BIST tests as first-class code citizens; any change to output format *must* trigger an atomic update to the corresponding test case.
+
+### 9.4 Scope & Name Errors in Context Managers
+- **Observation**: `NameError: name 'resp' is not defined`.
+- **Root Cause**: Accessing variables defined in `with` blocks (like `resp = urlopen(...)`) after an exception occurs inside the `with` header. If `urlopen` fails, `resp` is never bound, but the `except` block might still try to use it for logging.
+- **Mitigation**: Initialize variables to `None` before the `with` block or handle errors within a dedicated scope where variables are guaranteed to exist.
