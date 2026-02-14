@@ -89,7 +89,9 @@ class Orchestrator:
             provider_cfg.get("provider", "gemini"),
             api_key=provider_cfg["api_key"], 
             model=provider_cfg["model"], 
-            temperature=provider_cfg["temperature"]
+            temperature=provider_cfg["temperature"],
+            oauth_client_secret=provider_cfg.get("oauth_client_secret"),
+            oauth_token_path=provider_cfg.get("oauth_token_path")
         )
         print(f" LLM Provider initialized: {self.provider}")
         

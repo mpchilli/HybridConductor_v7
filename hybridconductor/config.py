@@ -60,13 +60,25 @@ class Config:
         """Get Telegram chat ID."""
         return os.environ.get("TELEGRAM_CHAT_ID")
 
+    @property
+    def google_client_secret(self) -> Optional[str]:
+        """Path to google client_secret.json for OAuth."""
+        return os.environ.get("GOOGLE_CLIENT_SECRET_PATH")
+
+    @property
+    def google_token_path(self) -> str:
+        """Path to store/load OAuth token.json."""
+        return os.environ.get("GOOGLE_TOKEN_PATH", str(self.root_dir / "state" / "token.json"))
+
     def get_provider_config(self) -> Dict[str, Any]:
         """Get LLM provider configuration."""
         return {
             "provider": os.environ.get("LLM_PROVIDER", "gemini"),
             "api_key": os.environ.get("OPENAI_API_KEY") or os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("GEMINI_API_KEY"),
             "model": os.environ.get("LLM_MODEL", "gemini-2.0-flash-exp"),
-            "temperature": float(os.environ.get("LLM_TEMPERATURE", "0.7"))
+            "temperature": float(os.environ.get("LLM_TEMPERATURE", "0.7")),
+            "oauth_client_secret": self.google_client_secret,
+            "oauth_token_path": self.google_token_path
         }
 
 # Global instance for easy import
