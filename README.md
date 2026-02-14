@@ -84,19 +84,18 @@ python orchestrator.py --prompt "Refactor src/utils.py" --complexity fast
 
 #### **Available Arguments**
 
-| Argument | Description |
-| :--- | :--- |
-| `--prompt "..."` | **Main Task**: The natural language instruction for the AI (e.g., "Add unit tests for auth.py"). |
-| `--complexity` | **Workflow Depth**: Choose between `fast` (direct), `streamlined` (TDD), or `full` (Spec-first). |
-| `--preset` | **Profile**: Load a named configuration from the `presets/` directory (e.g., `tdd`, `refactor`). |
-| `--resume` | **Persistence**: Resume from the last saved `session.json` state in the `state/` directory. |
-| `--background` | **Detach**: Spawn a detached Windows process. Output is redirected to `logs/background_HHMMSS.log`. |
+| Argument | Values | Description | Use Case |
+| :--- | :--- | :--- | :--- |
+| `--prompt` | Any natural language string | The core instruction for the AI to execute. | `--prompt "Refactor auth middleware"` |
+| `--complexity` | • `fast`<br>• `streamlined`<br>• `full` | **Workflow Depth**: Control the rigor of the state machine. | • `--complexity fast` for trivial fixes<br>• `--complexity full` for mission-critical features |
+| `--preset` | • `debug`<br>• `fast_track`<br>• `full`<br>• `streamlined`<br>• `tdd` | **Profiles**: Loads predefined configuration overrides from the `presets/` folder. | • `--preset tdd` to force a test-driven development flow |
+| `--resume` | Flag (no value required) | **Persistence**: Restores the orchestrator to its last saved state from `state/session.json`. | Recovering a session after a reboot or intentional pause |
+| `--background` | Flag (no value required) | **Detachment**: Spawns a detached process. Stays active if the terminal is closed. | Running long-running refactors (30m+) in the background |
 
 #### **Complexity Mode Comparison**
-
--   **`fast`**: Skips formal planning. Goes straight to the Build-Implement-Verify loop. Best for simple one-liners.
--   **`streamlined`**: *(Default)* Minimal spec + TDD workflow. Balanced speed and safety.
--   **`full`**: Generates a formal `spec.md` and `plan.md` first. Requires strict verification gates.
+-   **`fast`**: Skips planning and specs. Direct implementation loop.
+-   **`streamlined`**: Default balanced mode. Minimal spec + TDD workflow.
+-   **`full`**: High-rigor mode. Forced `spec.md` and `plan.md` generation with strict verification gates.
 
 #### **Advanced Examples**
 

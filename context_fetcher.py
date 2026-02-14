@@ -120,21 +120,14 @@ class ContextFetcher:
         results = []
         query_lower = query.lower()
         
-        # Common source file patterns
-        patterns = [
-            r'\.(py|js|ts|jsx|tsx|java|cpp|c|h|cs|rb|go|rs|php|html|css|md|json|yml|yaml)$'
-        ]
-        
-        try:
-            # Note: Path.walk() requires Python 3.12+. Falling back to os.walk for 3.11 compatibility if needed, 
-            # but using Path.walk per master spec requirements for consistency with other scripts.
-            for root, dirs, files in os.walk(str(self.project_root)):
-                # Skip common directories
-                dirs[:] = [d for d in dirs if d not in ['.git', '__pycache__', 'node_modules', 'venv', 'env', '.venv']]
+                # Allowed extensions
+                extensions = {'.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.cpp', '.c', '.h', '.cs', '.rb', '.go', '.rs', '.php', '.html', '.css', '.md', '.json', '.yml', '.yaml'}
                 
                 for file in files:
-                    # Check if file matches pattern
-                    if not any(re.search(pattern, file) for pattern in patterns):
+                    file_path = Path(root) / file
+                    
+                    # Check if file has allowed extension (case-insensitive)
+                    if file_path.suffix.lower() not in extensions:
                         continue
                     
                     file_path = Path(root) / file

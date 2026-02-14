@@ -121,3 +121,18 @@
 
 - **Issue**: A parent process spawning a child that re-spawns the parent (infinite fork bomb).
 - **Fix**: Implemented the `HC_BACKGROUND_CHILD` environment variable sentinal. The `orchestrator.py` checks for this variable at startup; if present, it behaves as a worker/child rather than spawning a new background task.
+
+## 8. Connectivity & Notification Edge Cases
+
+### Telegram SSL Handshake Failure (Windows)
+
+- **Issue**: `SSLV3_ALERT_HANDSHAKE_FAILURE` consistently occurs on certain Windows environments when connecting to `api.telegram.org`.
+- **Cause**: Often caused by outdated root certificates in the Windows store, or the Python `ssl` module not negotiating the correct TLS version.
+- **Fix**: Explicitly created an SSL context using `ssl.create_default_context()` and forced `ctx.minimum_version = ssl.TLSVersion.TLSv1_2`.
+- **Lesson**: Standard library `urlopen` without an explicit, modern `ssl` context is prone to protocol negotiation failures on older or locked-down Windows systems.
+
+### NameError with Context Managers
+
+- **Issue**: `NameError: name 'resp' is not defined` when an exception occurs inside or immediately before a `with urlopen(...) as resp:` block.
+- **Cause**: If an exception occurs during the `urlopen` call itself, the name `resp` is never bound.
+- **Fix**: Referenced `resp` only within the scope of the `with` block, or ensured any error handlers don't assume the existence of the response object if the connection itself failed.

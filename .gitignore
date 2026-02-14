@@ -49,8 +49,11 @@ nosetests.xml
 coverage.xml
 *.cover
 *.py,cover
-.hypothesis/
-.pytest_cache/
+.hypothesis\
+.pytest_cache\
+
+logs\activity.db
+
 
 # Jupyter Notebook
 .ipynb_checkpoints

@@ -159,8 +159,14 @@ class TelegramNotifier:
             req = Request(url, method="GET")
 
         try:
-            # Create SSL context to avoid handshake failures (TLS 1.2+)
+            # Create hardened SSL context for modern Telegram API requirements
             ctx = ssl.create_default_context()
+            # Explicitly force TLSv1.2 or higher
+            ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+            
+            # Disable hostname verification ONLY as a last resort in logging if still failing
+            # but keep it enabled for security defaults.
+            
             with urlopen(req, timeout=15, context=ctx) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
             
@@ -170,9 +176,12 @@ class TelegramNotifier:
 
         except (URLError, HTTPError) as e:
             self.consecutive_errors += 1
-            # Downgrade SSL handshake errors to warning to avoid panic
-            if "SSLV3_ALERT_HANDSHAKE_FAILURE" in str(e):
-                logger.warning(f"Telegram SSL Error: {e} (Attempt {self.consecutive_errors})")
+            # Check for specific SSL errors to provide targeted advice
+            err_msg = str(e)
+            if "SSLV3_ALERT_HANDSHAKE_FAILURE" in err_msg:
+                logger.warning(f"Telegram SSL Error (Handshake): {e}. This system might lack necessary root certificates or TLS 1.3 support. (Attempt {self.consecutive_errors})")
+            elif "CERTIFICATE_VERIFY_FAILED" in err_msg:
+                logger.warning(f"Telegram SSL Error (Cert): {e}. Check system time and certificate store. (Attempt {self.consecutive_errors})")
             else:
                 logger.error(f"Telegram API error: {e}")
             return {"ok": False}
