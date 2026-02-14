@@ -49,7 +49,7 @@ const ProcessFlow = ({ data, sseStatus }) => {
           const isFailed = currentStage === 'failed' && stage === stages[stages.indexOf(currentStage)] ;
 
           // Determine style
-          let bgClass = 'bg-gray-800/50 border-gray-700 text-gray-500';
+          let bgClass = 'bg-gray-800/40 border-gray-700/50 text-gray-400 hover:border-gray-600 transition-colors';
           let dotClass = 'bg-gray-600';
 
           if (isCompleted) {

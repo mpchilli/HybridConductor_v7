@@ -59,13 +59,15 @@ const EntryField = ({ onSend, disabled = false }) => {
 
       <div className="flex justify-between items-center mt-2 opacity-50 group-hover:opacity-100 transition-opacity">
          <div
-            className="cursor-ns-resize p-1 hover:bg-glass-200 rounded"
+            className="cursor-ns-resize p-1.5 hover:bg-glass-200 rounded transition-colors text-gray-500 hover:text-white"
             onMouseDown={() => setIsDragging(true)}
             title="Drag to resize"
          >
-            <svg width="16" height="4" viewBox="0 0 16 4" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect width="16" height="1" rx="0.5" fill="currentColor"/>
-                <rect y="3" width="16" height="1" rx="0.5" fill="currentColor"/>
+            {/* Grip Dots */}
+            <svg width="24" height="4" viewBox="0 0 24 4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <circle cx="2" cy="2" r="1" fill="currentColor" stroke="none"/>
+                <circle cx="12" cy="2" r="1" fill="currentColor" stroke="none"/>
+                <circle cx="22" cy="2" r="1" fill="currentColor" stroke="none"/>
             </svg>
          </div>
 
