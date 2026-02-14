@@ -1,0 +1,23 @@
+# Hybrid Conductor - Notification Credentials
+# Copy this file to notifications.yml and fill in your values.
+# notifications.yml is in .gitignore — your secrets stay local.
+
+# Discord Webhook URL (Settings > Integrations > Webhooks > New Webhook > Copy URL)
+discord_webhook_url: ""
+
+# Telegram Bot Token (from @BotFather)
+telegram_bot_token: ":"
+
+# Telegram Chat ID (message @userinfobot to get yours)
+telegram_chat_id: ""
+
+# Which events trigger notifications (comma-separated)
+# Options: start, complete, failed, blocker, running, paused
+notify_on:
+  - start
+  - complete
+  - failed
+  - blocker
+
+# How often to poll Telegram for commands (seconds)
+poll_interval: 10

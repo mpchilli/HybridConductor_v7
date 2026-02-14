@@ -23,6 +23,7 @@ from datetime import datetime
 
 # ─── Project Root & Version (DRY) ───────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
+sys.path.insert(0, str(PROJECT_ROOT))  # Allow importing notifier.py from project root
 
 def _read_version():
     """Read version from single source of truth: PROJECT_ROOT/VERSION"""
@@ -79,6 +80,19 @@ app_state = {
     }
 }
 
+# ─── Notification Integration ───────────────────────────────────────────────
+try:
+    from notifier import NotificationManager
+    _notifier = NotificationManager(PROJECT_ROOT, command_handler=None)
+    if _notifier.enabled:
+        logger.info("Notifications enabled (Discord/Telegram)")
+        _notifier.start_polling()
+    else:
+        logger.info("Notifications not configured — skipping")
+except ImportError:
+    _notifier = None
+    logger.warning("notifier.py not found — notifications disabled")
+
 def _add_log(level, message):
     """Thread-safe log append + push to SSE."""
     entry = {
@@ -94,7 +108,7 @@ def _add_log(level, message):
     logger.log(getattr(logging, level.upper(), logging.INFO), message)
 
 def _update_flow_stage(stage, event="entered"):
-    """Update process flow tracking."""
+    """Update process flow tracking + send notification."""
     now = datetime.now().isoformat()
     flow = app_state["process_flow"]
     flow["current_stage"] = stage
@@ -114,6 +128,11 @@ def _update_flow_stage(stage, event="entered"):
     # Keep last 200 history entries
     if len(flow["history"]) > 200:
         flow["history"] = flow["history"][-200:]
+
+    # Send notification
+    if _notifier and _notifier.enabled:
+        notify_status = stage if event != "error" else "failed"
+        _notifier.notify(notify_status, f"Stage: {stage} ({event})", stage=stage)
 
 def _broadcast_state():
     """Push current state to all SSE clients."""

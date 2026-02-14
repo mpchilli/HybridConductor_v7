@@ -31,6 +31,9 @@ venv/
 env/
 .env
 
+# Notification Credentials (secrets)
+notifications.yml
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
