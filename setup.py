@@ -64,7 +64,7 @@ def main():
     # Index codebase with Openground
     _index_codebase(project_root)
     
-    print(" Hybrid Orchestrator v7.2.8 installed successfully!")
+    print(" Hybrid Orchestrator v8.0.3 installed successfully!")
     print(f" Project root: {project_root}")
     print(" Run 'python orchestrator.py' to start")
 

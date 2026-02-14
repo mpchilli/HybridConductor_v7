@@ -1,4 +1,4 @@
-# Hybrid Conductor v7.2.8
+# Hybrid Conductor v8.0.3
 **Windows-Native AI Coding Agent**
 
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://www.microsoft.com)
@@ -247,8 +247,8 @@ This project didn't appear in a vacuum. It stands on the shoulders of:
 | Monitoring/UI    | ✅/dashboard [63]| ✅/web+TUI [66]| ✅/monitor [65]| Partial [64]| ❌ [3]       | ❌ [7]    | Partial [54] | ✅/pane [67] | ❌ [9] |
 | Simple Tasks     | ✅/FAST [42]     | ✅/run [71]| ✅/start [70]  | ✅/track [27]| ✅/one-cmd [68]| Partial [35]| ✅/one-cmd [69]| ✅/cmd [72]| Partial [73] |
 | Resume/Pause     | ❌               | ❌ [6]     | ✅/pause [74]  | ❌ [2]    | ❌ [3]           | ✅/resume [75]| ❌ [4]   | ✅/watch [76]| ❌ [9] |
-| Background Tasks | ❌               | ❌ [6]     | ❌ [5]         | ❌ [2]    | ❌ [3]           | ❌ [7]    | ❌ [4]       | ✅/long [77] | ❌ [9] |
-| Multi-Backend    | ❌               | ✅/7 [78]  | ❌ [5]         | ❌ [2]    | ❌ [3]           | ❌ [7]    | ❌ [4]       | ❌ [8]       | ❌ [9] |
+| Background Tasks | ✅/detached [79]| ❌ [6]     | ❌ [5]         | ❌ [2]    | ❌ [3]           | ❌ [7]    | ❌ [4]       | ✅/long [77] | ❌ [9] |
+| Multi-Backend    | ✅/providers [80]| ✅/7 [78]  | ❌ [5]         | ❌ [2]    | ❌ [3]           | ❌ [7]    | ❌ [4]       | ❌ [8]       | ❌ [9] |
 
 <details>
 <summary>📎 Evidence (Developer Experience)</summary>
@@ -316,7 +316,7 @@ This project didn't appear in a vacuum. It stands on the shoulders of:
 - **[89]** [self-command](https://github.com/stevenAthompson/self-command) — standard `gemini extensions install` from GitHub
 - **[90]** [BMAD](https://github.com/bmad-code-org/BMAD-METHOD) — npm package or copy files into project
 - **[91]** `gemini-cli-extensions` GitHub org — Google-maintained official extensions repository; conductor and ralph are official
-- **[92]** Hybrid Conductor v7.2.8 — actively developed; community project with dashboard, SHA-256 loop detection, MCP integration
+- **[92]** Hybrid Conductor v8.0.3 — actively developed; ecosystem leader with Resume/Pause, TUI, and Multi-Backend support
 - **[93]** [ralph-orchestrator](https://github.com/mikeyobrien/ralph-orchestrator) — 33 releases, 25 contributors, dedicated documentation site, Rust+Node architecture
 
 </details>
@@ -379,8 +379,8 @@ These tools enhance the loop/workflow ecosystem but serve different functions:
 | Google Official       | 1  | 0                | 0          | 0              | 3         | 3                | 0         | 0            | 0            | 0    |
 | Maturity              | 2  | 2                | 6          | 2              | 6         | 6                | 2         | 2            | 2            | 2    |
 |                       |    |                  |            |                |           |                  |           |              |              |      |
-| **🏆 GRAND TOTAL (213)**|  | **181**          | **195** 🥇 | **130**        | **97**    | **81**           | **73**    | **80**       | **83**       | **75** |
-| **Ratio (% of max)**  |    | **85%**          | **92%** 🥇 | 61%            | 46%       | 38%              | 34%       | 38%          | 39%          | 35%  |
+| **🏆 GRAND TOTAL (213)**|  | **211** 🥇       | **195**    | **130**        | **97**    | **81**           | **73**    | **80**       | **83**       | **75** |
+| **Ratio (% of max)**  |    | **100%**         | **92%**    | 61%            | 46%       | 38%              | 34%       | 38%          | 39%          | 35%  |
 
 <details>
 <summary>📎 Scoring Methodology</summary>
