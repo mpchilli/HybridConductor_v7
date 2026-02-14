@@ -25,6 +25,7 @@ function App() {
   const logs = sseData?.logs || [];
   const processFlow = sseData?.process_flow || null;
   const orchestratorRunning = sseData?.orchestrator_running || false;
+  const notifications = sseData?.notifications || { discord: false, telegram: 'disabled' };
 
   // Set version from SSE init or API
   useEffect(() => {
@@ -88,6 +89,23 @@ function App() {
             Hybrid Conductor <span className="text-xs text-gray-400 font-mono">v{version}</span>
           </h1>
           <div className="flex items-center gap-3">
+            {/* Notification Status */}
+            <div className="flex items-center gap-2 border-r border-glass-200 pr-3 mr-1">
+               {/* Discord */}
+               <div className={`p-1.5 rounded-md transition-colors ${notifications?.discord ? 'text-[#5865F2] bg-[#5865F2]/10' : 'text-gray-600'}`} title={notifications?.discord ? "Discord Connected" : "Discord Disabled"}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037 14.12 14.12 0 0 0-.624 1.282 18.257 18.257 0 0 0-5.457 0 14.125 14.125 0 0 0-.627-1.282.074.074 0 0 0-.079-.037 19.795 19.795 0 0 0-4.887 1.515.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.076.076 0 0 0-.04.106 13.682 13.682 0 0 0 1.225 1.994.077.077 0 0 0 .084.028 19.897 19.897 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.074.074 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+               </div>
+               {/* Telegram */}
+               <div className={`p-1.5 rounded-md transition-colors ${
+                  notifications?.telegram === 'connected' ? 'text-[#24A1DE] bg-[#24A1DE]/10' : 
+                  notifications?.telegram_error ? 'text-red-400 bg-red-400/10 animate-pulse' : 
+                  notifications?.telegram === 'connecting' ? 'text-yellow-400 bg-yellow-400/10 animate-pulse' :
+                  'text-gray-600'
+               }`} title={`Telegram: ${notifications?.telegram || 'disabled'}`}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+               </div>
+            </div>
+
             {/* SSE Status Indicator */}
             <div className="flex items-center gap-1.5" title={`Stream: ${sseStatus}`}>
               <span className={`w-2 h-2 rounded-full ${

@@ -145,6 +145,7 @@ def _broadcast_state():
         "process_flow": app_state["process_flow"],
         "config": app_state["config"],
         "orchestrator_running": app_state["orchestrator_pid"] is not None,
+        "notifications": _notifier.get_status() if _notifier else {"discord": False, "telegram": "disabled", "telegram_error": False},
     }
     try:
         event_queue.put_nowait(data)
@@ -315,6 +316,7 @@ def stats():
         "orchestrator_running": app_state["orchestrator_pid"] is not None,
         "log_count": len(app_state["logs"]),
         "task_count": len(app_state["tasks"]),
+        "notifications": _notifier.get_status() if _notifier else {"discord": False, "telegram": "disabled", "telegram_error": False},
     })
 
 @app.route('/api/console', methods=['POST'])

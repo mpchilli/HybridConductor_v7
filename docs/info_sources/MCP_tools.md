@@ -67,3 +67,19 @@
 | 24                          | poweroutlet2 (u/poweroutlet2) - Reddit                                                                                                                                                                                                                                                        |                                                                                                                         |                              |              |
 | 25                          | Scrappy agents in Gemini CLI within Gemini CLI and Blueprint MCP                                                                                                                                                                                                                              | by Nick Felker                                                                                                          | Dec, 2025                    | Medium       |
 |                             |                                                                                                                                                                                                                                                                                               |                                                                                                                         |                              |              |
+
+
+
+
+
+
+---
+others:
+
+
+
+---
+
+> https://github.com/kstonekuan/telegram-notification-mcp
+> https://github.com/harnyk/mcp-telegram-notifier
+> https://github.com/kstonekuan/discord-notification-mcp

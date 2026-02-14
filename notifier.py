@@ -23,6 +23,7 @@ from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 from urllib.parse import urlencode
 from typing import Optional, Callable
+import ssl
 
 logger = logging.getLogger("notifier")
 
@@ -145,6 +146,8 @@ class TelegramNotifier:
         self.chat_id = chat_id
         self.base_url = self.BASE_URL.format(token=bot_token)
         self._last_update_id = 0
+        self.consecutive_errors = 0
+        self.disabled = False
 
     def _api_call(self, method: str, data: dict = None) -> dict:
         """Make a Telegram Bot API call."""
@@ -156,10 +159,22 @@ class TelegramNotifier:
             req = Request(url, method="GET")
 
         try:
-            with urlopen(req, timeout=15) as resp:
-                return json.loads(resp.read().decode("utf-8"))
+            # Create SSL context to avoid handshake failures (TLS 1.2+)
+            ctx = ssl.create_default_context()
+            with urlopen(req, timeout=15, context=ctx) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+            
+            # Reset error count on success
+            self.consecutive_errors = 0
+            return result
+
         except (URLError, HTTPError) as e:
-            logger.error(f"Telegram API error: {e}")
+            self.consecutive_errors += 1
+            # Downgrade SSL handshake errors to warning to avoid panic
+            if "SSLV3_ALERT_HANDSHAKE_FAILURE" in str(e):
+                logger.warning(f"Telegram SSL Error: {e} (Attempt {self.consecutive_errors})")
+            else:
+                logger.error(f"Telegram API error: {e}")
             return {"ok": False}
 
     def send(self, message: str, parse_mode: str = "HTML"):
@@ -259,6 +274,23 @@ class NotificationManager:
     def enabled(self) -> bool:
         return self.config.get("enabled", False)
 
+    def get_status(self) -> dict:
+        """Return connectivity status for UI."""
+        status = {
+            "discord": bool(self.discord),
+            "telegram": "connected" if self.telegram and not self.telegram.disabled else "disabled",
+            "telegram_error": False
+        }
+        
+        if self.telegram:
+            if self.telegram.disabled:
+                status["telegram"] = "error"
+                status["telegram_error"] = True
+            elif self.telegram.consecutive_errors > 0:
+                status["telegram"] = "connecting"
+                
+        return status
+
     def notify(self, status: str, details: str, stage: str = None):
         """Send notification to all enabled channels."""
         if not self.enabled:
@@ -300,9 +332,17 @@ class NotificationManager:
         while self._polling:
             try:
                 commands = self.telegram.get_commands()
+                
+                # Circuit Breaker: Disable if too many errors
+                if self.telegram.consecutive_errors >= 3:
+                    logger.warning("Telegram polling disabled due to persistent connection errors (Circuit Breaker). check notifications.yml")
+                    self.stop_polling()
+                    break
+
                 for cmd in commands:
                     logger.info(f"Telegram command received: {cmd}")
                     if self.command_handler:
+                        # ... (existing handler code) ...
                         try:
                             result = self.command_handler(cmd)
                             if result:
@@ -311,6 +351,7 @@ class NotificationManager:
                             self.telegram.send(f"❌ Error: {str(e)[:200]}")
             except Exception as e:
                 logger.error(f"Telegram polling error: {e}")
+                time.sleep(5)
 
             time.sleep(interval)
 
