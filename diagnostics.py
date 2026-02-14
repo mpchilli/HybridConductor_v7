@@ -66,4 +66,13 @@ else:
     print("    ⚠ No specific renderer forced in environment")
     print("    → start_gui.py should force 'winforms' to avoid crashes")
 
+
+# 5. Check Package Integrity
+print("\n[5] Package Integrity Check...")
+try:
+    from hybridconductor.core import LoopGuardian
+    print("    ✓ hybridconductor.core.LoopGuardian importable")
+except ImportError as e:
+    print(f"    ✗ Failed to import LoopGuardian from hybridconductor.core: {e}")
+
 print("\n=== Diagnostics Complete ===")
