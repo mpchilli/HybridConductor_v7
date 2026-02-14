@@ -1,4 +1,4 @@
-# Hybrid Conductor v8.0.3
+# Hybrid Conductor v7.1.6
 **Windows-Native AI Coding Agent**
 
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://www.microsoft.com)
@@ -80,6 +80,14 @@ For CI/CD pipelines or hard-core terminal users.
 ```powershell
 python orchestrator.py --prompt "Refactor src/utils.py" --complexity fast
 ```
+
+### **🔧 Option E: Manual Launch (Debugging)**
+If `start_app.py` fails or you need direct access:
+```powershell
+cd backend
+python -m dashboard.app
+```
+*Note: Must be run from the `backend/` directory.*
 
 ---
 
@@ -316,7 +324,7 @@ This project didn't appear in a vacuum. It stands on the shoulders of:
 - **[89]** [self-command](https://github.com/stevenAthompson/self-command) — standard `gemini extensions install` from GitHub
 - **[90]** [BMAD](https://github.com/bmad-code-org/BMAD-METHOD) — npm package or copy files into project
 - **[91]** `gemini-cli-extensions` GitHub org — Google-maintained official extensions repository; conductor and ralph are official
-- **[92]** Hybrid Conductor v8.0.3 — actively developed; ecosystem leader with Resume/Pause, TUI, and Multi-Backend support
+- **[92]** Hybrid Conductor v7.1.6 — actively developed; ecosystem leader with Resume/Pause, TUI, and Multi-Backend support
 - **[93]** [ralph-orchestrator](https://github.com/mikeyobrien/ralph-orchestrator) — 33 releases, 25 contributors, dedicated documentation site, Rust+Node architecture
 
 </details>
