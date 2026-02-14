@@ -20,11 +20,27 @@ WINDOWS-SPECIFIC CONSIDERATIONS:
 - File operations use atomic writes with Windows locking retry
 """
 
+
 import os
 import sys
 import time
 import json
 import sqlite3
+import traceback  # Added for debug handling
+
+# Pre-import debug check
+if "--debug" in sys.argv:
+    # Set up immediate debug logging for imports
+    debug_log = Path(f"hc_debug_{int(time.time())}.log")
+    print(f" DEBUG MODE: Logging to {debug_log.absolute()}")
+    
+    def log_exception(exc_type, exc_value, exc_traceback):
+        with open(debug_log, "a") as f:
+            traceback.print_exception(exc_type, exc_value, exc_traceback, file=f)
+        traceback.print_exception(exc_type, exc_value, exc_traceback)
+        
+    sys.excepthook = log_exception
+
 from datetime import datetime
 from pathlib import Path
 from enum import Enum

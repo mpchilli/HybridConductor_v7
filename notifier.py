@@ -24,6 +24,12 @@ from urllib.error import URLError, HTTPError
 from urllib.parse import urlencode
 from typing import Optional, Callable
 import ssl
+try:
+    from hybridconductor.core.ssl_fix import patch_ssl_context
+except ImportError:
+    # Fallback if package structure not fully set up
+    def patch_ssl_context():
+        return ssl.create_default_context()
 
 logger = logging.getLogger("notifier")
 
@@ -160,7 +166,8 @@ class TelegramNotifier:
 
         try:
             # Create hardened SSL context for modern Telegram API requirements
-            ctx = ssl.create_default_context()
+            # Use vendored certs via patch_ssl_context()
+            ctx = patch_ssl_context()
             # Explicitly force TLSv1.2 or higher
             ctx.minimum_version = ssl.TLSVersion.TLSv1_2
             

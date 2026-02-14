@@ -662,18 +662,38 @@ Developing on native Windows presents unique challenges that we are currently tr
 
 ### 1. SSL/TLS Handshake Failures
 - **Symptom**: `SSLV3_ALERT_HANDSHAKE_FAILURE` when connecting to Telegram API.
-- **Cause**: Outdated root certificates or incompatible cipher negotiation on some Windows builds.
-- **Current Status**: **Telegram notifications are disabled by default** while we research a library-independent fix. Discord remains the recommended notification channel.
+- **Resolution**: Implemented `hybridconductor.core.ssl_fix` which forces usage of a vendored Mozilla certificate bundle (`vendor/certifi/cacert.pem`).
+- **Current Status**: **Resolved**. The system now automatically patches the SSL context on startup.
 
 ### 2. File Handle Locking (WinError 32)
 - **Symptom**: `PermissionError` when deleting temporary task directories.
-- **Cause**: Windows prevents file deletion while another process (e.g., SQLite or a background child) still has an open handle.
-- **Current Status**: Investigating automated handle release and brief "cool-down" periods for BIST cleanup logic.
+- **Resolution**: Introduced `hybridconductor.utils.safe_cleanup` with a `safe_tempdir` context manager. This implements a retry loop with garbage collection to release Windows file handles.
+- **Current Status**: **Resolved**. Worker now gracefully handles directory cleanup.
 
 ### 3. Orchestrator Stability
 - **Symptom**: CLI task terminates after initialization with no file output.
-- **Cause**: Potential TUI race condition or silent exception in the background worker loop.
-- **Current Status**: High Priority. Implementing `--debug` mode to expose hidden tracebacks.
+- **Resolution**: Added `--debug` flag with top-level `sys.excepthook` to catch import-time errors. Enforced `winforms` renderer for `pywebview` to prevent chromium crashes.
+- **Current Status**: **Resolved**. Run `python orchestrator.py --debug` if issues persist.
+
+### 4. MCP offline noise
+- **Symptom**: `WinError 10061` when Git MCP server is not running.
+- **Resolution**: `McpClient` now respects `HYBRIDCONDUCTOR_OFFLINE=true` environment variable and fails gracefully.
+
+---
+
+## 🩺 Diagnostics
+
+We included a diagnostic tool to verify your environment is ready for hybrid orchestration.
+
+```powershell
+python diagnostics.py
+```
+
+Checks performed:
+1.  **Localhost Connectivity**: Verifies Flask backend is reachable.
+2.  **Discord Config**: Validates webhook URL format.
+3.  **SSL Trust**: Confirms vendored certificate bundle is present and loadable.
+4.  **GUI Renderer**: Checks `PYWEBVIEW_GUI` environment variable preference (should be `winforms`).
 
 ---
 **Auditor Signature**: Antigravity

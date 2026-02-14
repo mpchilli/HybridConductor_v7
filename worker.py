@@ -21,6 +21,7 @@ WINDOWS-SPECIFIC CONSIDERATIONS:
 - Git branch names sanitized to prevent path traversal
 """
 
+
 import os
 import sys
 import re
@@ -32,141 +33,11 @@ from typing import Dict, Any
 import requests
 import time
 
+# Import new modules
+from hybridconductor.mcp.client import McpClient
+from hybridconductor.utils.safe_cleanup import safe_tempdir
+
 from loop_guardian import normalize_output, compute_normalized_hash
-
-class McpClient:
-    """
-    MCP client for safe Git operations.
-    
-    WHY MCP OVER SUBPROCESS:
-    - Abstracts Windows Git credential/path differences
-    - Provides standardized error handling
-    - Enforces localhost-only communication
-    - Integrates with Windows security model
-    """
-    
-    def __init__(self, base_url: str = "http://127.0.0.1:8080"):
-        self.base_url = base_url
-    
-    def create_branch(self, name: str) -> None:
-        """Create isolated Git branch via MCP."""
-        sanitized_name = self._sanitize_branch_name(name)
-        try:
-            response = requests.post(
-                f"{self.base_url}/branches",
-                json={"name": sanitized_name},
-                timeout=5
-            )
-            response.raise_for_status()
-            print(f"[MCP] Created branch: {sanitized_name}")
-        except requests.exceptions.RequestException as e:
-            print(f" MCP create_branch failed: {e}")
-            # Fallback to subprocess Git
-            self._create_branch_subprocess(sanitized_name)
-    
-    def switch_branch(self, name: str) -> None:
-        """Switch to specified branch."""
-        sanitized_name = self._sanitize_branch_name(name)
-        try:
-            response = requests.post(
-                f"{self.base_url}/checkout",
-                json={"branch": sanitized_name},
-                timeout=5
-            )
-            response.raise_for_status()
-            print(f"[MCP] Switched to branch: {sanitized_name}")
-        except requests.exceptions.RequestException as e:
-            print(f" MCP switch_branch failed: {e}")
-            # Fallback to subprocess Git
-            self._switch_branch_subprocess(sanitized_name)
-    
-    def commit(self, message: str) -> None:
-        """Commit changes via MCP."""
-        try:
-            response = requests.post(
-                f"{self.base_url}/commit",
-                json={"message": message},
-                timeout=5
-            )
-            response.raise_for_status()
-            print(f"[MCP] Committed: {message}")
-        except requests.exceptions.RequestException as e:
-            print(f" MCP commit failed: {e}")
-            # Fallback to subprocess Git
-            self._commit_subprocess(message)
-    
-    def _sanitize_branch_name(self, name: str) -> str:
-        """
-        Sanitize branch name to prevent path traversal.
-        
-        WHY SANITIZATION:
-        - Prevents malicious branch names like '../../etc/passwd'
-        - Ensures Windows path compatibility
-        - Maintains Git branch naming conventions
-        """
-        sanitized = "".join(c for c in name if c.isalnum() or c in "-_")
-        return sanitized[:50]  # Limit length
-    
-    def _create_branch_subprocess(self, name: str) -> None:
-        """Fallback: Create branch using subprocess Git."""
-        try:
-            subprocess.run(
-                ["git", "checkout", "-b", name],
-                capture_output=True,
-                text=True,
-                shell=False,
-                timeout=10,
-                creationflags=subprocess.CREATE_NO_WINDOW,
-                check=True
-            )
-            print(f"[Git] Created branch via subprocess: {name}")
-        except subprocess.SubprocessError as e:
-            print(f" Git branch creation failed: {e}")
-            raise
-    
-    def _switch_branch_subprocess(self, name: str) -> None:
-        """Fallback: Switch branch using subprocess Git."""
-        try:
-            subprocess.run(
-                ["git", "checkout", name],
-                capture_output=True,
-                text=True,
-                shell=False,
-                timeout=10,
-                creationflags=subprocess.CREATE_NO_WINDOW,
-                check=True
-            )
-            print(f"[Git] Switched to branch via subprocess: {name}")
-        except subprocess.SubprocessError as e:
-            print(f" Git checkout failed: {e}")
-            raise
-    
-    def _commit_subprocess(self, message: str) -> None:
-        """Fallback: Commit using subprocess Git."""
-        try:
-            # Stage all changes
-            subprocess.run(
-                ["git", "add", "."],
-                capture_output=True,
-                text=True,
-                shell=False,
-                creationflags=subprocess.CREATE_NO_WINDOW,
-                check=True
-            )
-            # Commit
-            subprocess.run(
-                ["git", "commit", "-m", message],
-                capture_output=True,
-                text=True,
-                shell=False,
-                creationflags=subprocess.CREATE_NO_WINDOW,
-                check=True
-            )
-            print(f"[Git] Committed via subprocess: {message}")
-        except subprocess.SubprocessError as e:
-            print(f" Git commit failed: {e}")
-            raise
-
 
 def execute_task(
     plan: str,
@@ -177,102 +48,24 @@ def execute_task(
 ) -> bool:
     """
     Execute a single task with BIST verification.
-    
-    Args:
-        plan: Current execution plan from plan.md
-        context: Retrieved context from Openground/context_fetcher
-        complexity_mode: FAST/STREAMLINED/FULL execution profile
-        max_iterations: Maximum iterations before hard fail
-        tmp_dir: Directory for temporary task files
-        
-    Returns:
-        bool: True if task succeeded, False otherwise
     """
     print(f" Executing task in {complexity_mode} mode")
-    
-    # Setup tmp directory
-    if tmp_dir is None:
-        tmp_dir = Path(tempfile.gettempdir()) / "hybrid_orchestrator"
-        tmp_dir.mkdir(parents=True, exist_ok=True)
     
     # Launch MCP Git server for safe operations
     mcp_process = _launch_mcp_git_server()
     
     try:
-        # Create isolated branch for this task
-        mcp_client = McpClient()
-        task_id = _generate_task_id()
-        branch_name = f"task-{task_id}"
+        # Use safe_tempdir context manager for guaranteed cleanup
+        # If tmp_dir was passed externally, we use it directly (legacy behavior)
+        # otherwise we create a safe one.
         
-        print(f"SetBranch: {branch_name}")
-        mcp_client.create_branch(branch_name)
-        mcp_client.switch_branch(branch_name)
-        
-        # Execute task with linear retry escalation
-        for attempt in range(max_iterations):
-            temperature = _get_temperature_for_attempt(attempt)
-            
-            print(f"Attempt {attempt + 1}/{max_iterations} (temp={temperature})")
-            
-            # Generate code simulation
-            response = _generate_code(plan=plan, context=context, temperature=temperature)
-            _log_ai_conversation("AI", response[:500])
-            
-            # Parse multiple files (delimited by # filename: ...)
-            file_blocks = re.split(r"^# filename: ", response, flags=re.MULTILINE)
-            
-            all_bist_success = True
-            saved_files = []
-            
-            for block in file_blocks:
-                if not block.strip(): continue
-                lines = block.strip().splitlines()
-                filename = lines[0].strip()
-                content = "\n".join(lines[1:])
-                
-                # Save to tmp_dir for BIST
-                tmp_path = tmp_dir / filename
-                with open(tmp_path, "w", encoding="utf-8-sig") as f:
-                    f.write(content)
-                
-                # Run BIST
-                if not _run_bist(tmp_path):
-                    print(f" BIST failed for: {filename}")
-                    all_bist_success = False
-                    break
-                
-                saved_files.append((tmp_path, filename))
-            
-            if all_bist_success and saved_files:
-                print(f" All {len(saved_files)} files passed BIST.")
-                
-                # Create timestamped directory: tests/YYYYMMMdd/HHMMSS_taskid/
-                from datetime import datetime
-                timestamp = datetime.now()
-                date_str = timestamp.strftime("%Y%b%d")
-                time_str = timestamp.strftime("%H%M%S")
-                target_dir = Path.cwd() / "tests" / date_str / f"{time_str}_{task_id}"
-                target_dir.mkdir(parents=True, exist_ok=True)
-                
-                for tmp_path, filename in saved_files:
-                    final_path = target_dir / filename
-                    with open(tmp_path, "r", encoding="utf-8-sig") as src, open(final_path, "w", encoding="utf-8-sig") as dst:
-                        dst.write(src.read())
-                    print(f" Persisted: {final_path}")
-                
-                # Commit from the new directory? git add . handles repo root.
-                # If we move files to tests/..., we need to add THAT path.
-                mcp_client.commit(f"Auto-commit task {task_id}")
-                return True
-            else:
-                print(f" Attempt {attempt + 1} failed.")
-                if _detect_loop(response, attempt):
-                    print(" Loop detected. Escalating...")
-                    continue
-                if attempt >= 2: break
-        
-        return False
-        
+        # Helper to bridge context manager with optional external path
+        if tmp_dir:
+            return _execute_task_logic(plan, context, complexity_mode, max_iterations, tmp_dir, mcp_process)
+        else:
+            with safe_tempdir(prefix="hc_task_") as safe_dir:
+                 return _execute_task_logic(plan, context, complexity_mode, max_iterations, safe_dir, mcp_process)
+
     finally:
         # Cleanup MCP server
         mcp_process.terminate()
@@ -281,21 +74,84 @@ def execute_task(
         except subprocess.TimeoutExpired:
             mcp_process.kill()
         print(" MCP server terminated")
+
+
+def _execute_task_logic(plan, context, complexity_mode, max_iterations, tmp_dir, mcp_process):
+    # Create isolated branch for this task
+    mcp_client = McpClient()
+    task_id = _generate_task_id()
+    branch_name = f"task-{task_id}"
+    
+    print(f"SetBranch: {branch_name}")
+    try:
+        mcp_client.create_branch(branch_name)
+        mcp_client.switch_branch(branch_name)
+    except Exception as e:
+        print(f" Branch setup failed: {e}")
+        # Continue? Or fail?
+    
+    # Execute task with linear retry escalation
+    for attempt in range(max_iterations):
+        temperature = _get_temperature_for_attempt(attempt)
         
-        # Cleanup temporary task directory with retry to handle Windows file locks
-        import shutil
-        import time
-        max_retries = 3
-        for i in range(max_retries):
-            try:
-                if tmp_dir.exists():
-                    shutil.rmtree(tmp_dir)
+        print(f"Attempt {attempt + 1}/{max_iterations} (temp={temperature})")
+        
+        # Generate code simulation
+        response = _generate_code(plan=plan, context=context, temperature=temperature)
+        _log_ai_conversation("AI", response[:500])
+        
+        # Parse multiple files (delimited by # filename: ...)
+        file_blocks = re.split(r"^# filename: ", response, flags=re.MULTILINE)
+        
+        all_bist_success = True
+        saved_files = []
+        
+        for block in file_blocks:
+            if not block.strip(): continue
+            lines = block.strip().splitlines()
+            filename = lines[0].strip()
+            content = "\n".join(lines[1:])
+            
+            # Save to tmp_dir for BIST
+            tmp_path = tmp_dir / filename
+            with open(tmp_path, "w", encoding="utf-8-sig") as f:
+                f.write(content)
+            
+            # Run BIST
+            if not _run_bist(tmp_path):
+                print(f" BIST failed for: {filename}")
+                all_bist_success = False
                 break
-            except PermissionError:
-                if i < max_retries - 1:
-                    time.sleep(1)
-                else:
-                    print(f" Warning: Could not fully clean up {tmp_dir} due to file lock.")
+            
+            saved_files.append((tmp_path, filename))
+        
+        if all_bist_success and saved_files:
+            print(f" All {len(saved_files)} files passed BIST.")
+            
+            # Create timestamped directory: tests/YYYYMMMdd/HHMMSS_taskid/
+            from datetime import datetime
+            timestamp = datetime.now()
+            date_str = timestamp.strftime("%Y%b%d")
+            time_str = timestamp.strftime("%H%M%S")
+            target_dir = Path.cwd() / "tests" / date_str / f"{time_str}_{task_id}"
+            target_dir.mkdir(parents=True, exist_ok=True)
+            
+            for tmp_path, filename in saved_files:
+                final_path = target_dir / filename
+                with open(tmp_path, "r", encoding="utf-8-sig") as src, open(final_path, "w", encoding="utf-8-sig") as dst:
+                    dst.write(src.read())
+                print(f" Persisted: {final_path}")
+            
+            mcp_client.commit(f"Auto-commit task {task_id}")
+            return True
+        else:
+            print(f" Attempt {attempt + 1} failed.")
+            if _detect_loop(response, attempt):
+                print(" Loop detected. Escalating...")
+                continue
+            if attempt >= 2: break
+    
+    return False
 
 
 def _log_ai_conversation(role: str, message: str) -> None:
@@ -601,8 +457,10 @@ def main():
     print("Test 7: AI conversation logging")
     
     # Use localized directory and environment for logging test
-    with tempfile.TemporaryDirectory() as tmpdir:
-        test_root = Path(tmpdir)
+    # Use localized directory and environment for logging test
+    # using safe_tempdir to avoid WinError 32 on cleanup
+    with safe_tempdir(prefix="hc_test_log_") as tmp_path:
+        test_root = tmp_path
         (test_root / "logs").mkdir()
         
         # We need to temporarily change CWD because _log_ai_conversation 
@@ -640,6 +498,9 @@ def main():
             print(" logging validated in temp environment")
         finally:
             os.chdir(old_cwd)
+            # Explicitly close any lingering connections if possible, 
+            # though conn.close() should have handled it. 
+            # safe_tempdir will handle the directory removal retry.
     
     print(" PASS: AI conversation logging works\\n")
     
