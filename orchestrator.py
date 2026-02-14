@@ -11,6 +11,8 @@ from pathlib import Path
 import os
 import argparse
 from datetime import datetime
+import time
+import traceback
 
 # Add project root to sys.path to ensure package resolution
 project_root = Path(__file__).parent.resolve()
@@ -18,10 +20,6 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from hybridconductor.orchestrator.fsm import Orchestrator, State, ComplexityMode, LoopGuardian
-
-# Pre-import debug check logic is kept here for immediate effect
-import time
-import traceback
 
 if "--debug" in sys.argv:
     debug_log = Path(f"hc_debug_{int(time.time())}.log")
@@ -117,10 +115,12 @@ if __name__ == "__main__":
             (project_root / "logs").mkdir()
             
             orchestrator = Orchestrator(project_root)
-            
-            assert orchestrator.current_state == State.PLANNING, "Should start in PLANNING state"
-            assert isinstance(orchestrator.loop_guardian, LoopGuardian), "Should have LoopGuardian"
-            assert orchestrator.complexity_mode == ComplexityMode.STREAMLINED, "Default should be STREAMLINED"
+            try:
+                assert orchestrator.current_state == State.PLANNING, "Should start in PLANNING state"
+                assert isinstance(orchestrator.loop_guardian, LoopGuardian), "Should have LoopGuardian"
+                assert orchestrator.complexity_mode == ComplexityMode.STREAMLINED, "Default should be STREAMLINED"
+            finally:
+                orchestrator.shutdown()
         
         print(" PASS: Initialization works\n")
         
@@ -133,23 +133,24 @@ if __name__ == "__main__":
             (project_root / "logs").mkdir()
             
             orchestrator = Orchestrator(project_root)
-            
-            orchestrator.set_complexity_mode("fast")
-            assert orchestrator.complexity_mode == ComplexityMode.FAST
-            
-            orchestrator.set_complexity_mode("streamlined")
-            assert orchestrator.complexity_mode == ComplexityMode.STREAMLINED
-            
-            orchestrator.set_complexity_mode("full")
-            assert orchestrator.complexity_mode == ComplexityMode.FULL
-            
-            orchestrator.set_complexity_mode("invalid")
-            assert orchestrator.complexity_mode == ComplexityMode.STREAMLINED, "Should default to STREAMLINED"
+            try:
+                orchestrator.set_complexity_mode("fast")
+                assert orchestrator.complexity_mode == ComplexityMode.FAST
+                
+                orchestrator.set_complexity_mode("streamlined")
+                assert orchestrator.complexity_mode == ComplexityMode.STREAMLINED
+                
+                orchestrator.set_complexity_mode("full")
+                assert orchestrator.complexity_mode == ComplexityMode.FULL
+                
+                orchestrator.set_complexity_mode("invalid")
+                assert orchestrator.complexity_mode == ComplexityMode.STREAMLINED, "Should default to STREAMLINED"
+            finally:
+                orchestrator.shutdown()
         
         print(" PASS: Complexity mode setting works\n")
         
-        # Test 3: Config loading (Assumes defaults work, mock file test moved to unit tests ideally)
-        # Simplified test for wrapper verification
+        # Test 3: Config persistence
         print("Test 3: Config persistence")
         with tempfile.TemporaryDirectory() as tmpdir:
             project_root = Path(tmpdir) / "project"
@@ -158,10 +159,12 @@ if __name__ == "__main__":
             (project_root / "logs").mkdir()
             
             orchestrator = Orchestrator(project_root)
-            assert orchestrator.config["max_iterations"] == 25
+            try:
+                assert orchestrator.config["max_iterations"] == 25
+            finally:
+                orchestrator.shutdown()
         
         print(" PASS: Config defaults loaded\n")
-        
         
         # Test 6: State transitions (Simulated)
         print("Test 6: State transitions")
@@ -172,21 +175,23 @@ if __name__ == "__main__":
             (project_root / "logs").mkdir()
             
             orchestrator = Orchestrator(project_root)
-            
-            # Should start in PLANNING
-            assert orchestrator.current_state == State.PLANNING
-            
-            # Simulate planning completion
-            orchestrator.current_state = State.BUILDING
-            assert orchestrator.current_state == State.BUILDING
-            
-            # Simulate building completion
-            orchestrator.current_state = State.VERIFYING
-            assert orchestrator.current_state == State.VERIFYING
-            
-            # Simulate verification completion
-            orchestrator.current_state = State.COMPLETE
-            assert orchestrator.current_state == State.COMPLETE
+            try:
+                # Should start in PLANNING
+                assert orchestrator.current_state == State.PLANNING
+                
+                # Simulate planning completion
+                orchestrator.current_state = State.BUILDING
+                assert orchestrator.current_state == State.BUILDING
+                
+                # Simulate building completion
+                orchestrator.current_state = State.VERIFYING
+                assert orchestrator.current_state == State.VERIFYING
+                
+                # Simulate verification completion
+                orchestrator.current_state = State.COMPLETE
+                assert orchestrator.current_state == State.COMPLETE
+            finally:
+                orchestrator.shutdown()
         
         print(" PASS: State transitions work\n")
         
@@ -199,9 +204,11 @@ if __name__ == "__main__":
             (project_root / "logs").mkdir()
             
             orchestrator = Orchestrator(project_root)
-            
-            assert orchestrator.tmp_dir.exists(), "Temp directory should exist"
-            assert "hybrid_orchestrator" in str(orchestrator.tmp_dir), "Should contain project name"
+            try:
+                assert orchestrator.tmp_dir.exists(), "Temp directory should exist"
+                assert "hybrid_orchestrator" in str(orchestrator.tmp_dir), "Should contain project name"
+            finally:
+                orchestrator.shutdown()
         
         print(" PASS: Temp directory creation works\n")
         

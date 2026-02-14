@@ -9,9 +9,10 @@ class GeminiProvider(LLMProvider):
     Uses google-generativeai package.
     """
     
-    def __init__(self, api_key: Optional[str] = None, model_name: str = "gemini-1.5-pro"):
+    def __init__(self, api_key: Optional[str] = None, model_name: str = "gemini-1.5-pro", **kwargs):
         self.api_key = api_key or os.environ.get("GOOGLE_API_KEY")
-        self.model_name = model_name
+        # Handle 'model' kwarg if passed (from config/factory)
+        self.model_name = kwargs.get("model", model_name)
         
         if not self.api_key:
             print(" Warning: GOOGLE_API_KEY not found. GeminiProvider will run in simulation mode.")

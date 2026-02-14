@@ -86,8 +86,9 @@ class Orchestrator:
              provider_cfg.update(self.config["llm"])
              
         self.provider = get_provider(
-            provider_cfg["api_key"], 
-            provider_cfg["model"], 
+            provider_cfg.get("provider", "gemini"),
+            api_key=provider_cfg["api_key"], 
+            model=provider_cfg["model"], 
             temperature=provider_cfg["temperature"]
         )
         print(f" LLM Provider initialized: {self.provider}")
@@ -100,6 +101,16 @@ class Orchestrator:
         
         # Pre-flight checks
         self._check_dependencies()
+
+    def shutdown(self):
+        """Cleanup resources, especially logging handlers."""
+        import logging
+        # Close all handlers associated with this logger
+        if hasattr(self, 'logger'):
+            handlers = self.logger.handlers[:]
+            for handler in handlers:
+                handler.close()
+                self.logger.removeHandler(handler)
 
     def _check_dependencies(self) -> None:
         """Verify required external tools like 'uv' are installed."""

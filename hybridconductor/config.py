@@ -63,8 +63,9 @@ class Config:
     def get_provider_config(self) -> Dict[str, Any]:
         """Get LLM provider configuration."""
         return {
-            "api_key": os.environ.get("OPENAI_API_KEY") or os.environ.get("ANTHROPIC_API_KEY"),
-            "model": os.environ.get("LLM_MODEL", "gpt-4-turbo"),
+            "provider": os.environ.get("LLM_PROVIDER", "gemini"),
+            "api_key": os.environ.get("OPENAI_API_KEY") or os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("GEMINI_API_KEY"),
+            "model": os.environ.get("LLM_MODEL", "gemini-2.0-flash-exp"),
             "temperature": float(os.environ.get("LLM_TEMPERATURE", "0.7"))
         }
 
