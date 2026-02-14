@@ -49,8 +49,7 @@ import yaml
 import argparse
 import tempfile
 
-from loop_guardian import LoopGuardian
-from context_fetcher import ContextFetcher
+from hybridconductor.core import LoopGuardian, ContextFetcher, normalize_output, compute_normalized_hash
 from cartographer import generate_map as generate_codebase_map
 from providers import get_provider
 from tui import TerminalUI

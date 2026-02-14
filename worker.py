@@ -37,7 +37,7 @@ import time
 from hybridconductor.mcp.client import McpClient
 from hybridconductor.utils.safe_cleanup import safe_tempdir
 
-from loop_guardian import normalize_output, compute_normalized_hash
+from hybridconductor.core import LoopGuardian, normalize_output, compute_normalized_hash
 
 def execute_task(
     plan: str,
