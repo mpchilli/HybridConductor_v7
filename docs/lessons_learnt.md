@@ -98,6 +98,25 @@
 - **Why**: `os.environ` isn't always fully propagated by default in some spawn configurations (especially when crossing from Node.js to Python).
 - **Fix**: Explicitly pass the `env` dictionary to the subprocess call, merging `os.environ` with any required project-specific variables (`PYTHONPATH`, `GEMINI_API_KEY`).
 
+## 7. External Tool Integration & Release Management
+
+### Dockerless OpenHands Strategy
+- **Issue**: Running full OpenHands agents usually requires Docker, which is heavy for simple Windows workflows and requires admin rights.
+- **Fix**: Leveraged `openhands serve --runtime=process` via the `uv` tool. Constructed a dedicated `OpenHandsRunner` adapter that checks for `uv` presence and manages the subprocess lifecycle separately from the main loop.
+- **Trade-off**: Process mode lacks sandboxing. Future work (v9) must implement a custom `Sandbox` wrapper to enforce safety limits (file access, network) that Docker usually handles.
+
+### Version Referential Integrity
+- **Issue**: Documentation rot caused by manual version updates. `grep` revealed multiple files (README, setup.py, matrix) still referencing "v4.1" or "v7.2.8" after a release.
+- **Lessons**: 
+    - **Grep is Mandatory**: Never trust a manual "search and replace". Always run `grep -r "old_version" .` before committing.
+    - **Single Source of Truth**: Ideally, read version from `pyproject.toml` in `conf.py` or doc generators, rather than hardcoding it in Markdown headers.
+
+### CLI Adapter Pattern
+- **Issue**: Integrating third-party CLI tools (like `openhands` or `uv`) can lead to "command not found" crashes on user machines.
+- **Fix**: Implemented the **Adapter Pattern** (`OpenHandsRunner`).
+    - **Check Prerequisites**: Explicit method `check_prerequisites()` returns a dict of missing tools.
+    - **Graceful Degradation**: The system detects missing tools *before* execution and offers fallback paths (e.g., "Install via uv" instructions) instead of crashing with a raw `FileNotFoundError`.
+
 ### "Start-Up Loop" with Recursive Process Spawning
 
 - **Issue**: A parent process spawning a child that re-spawns the parent (infinite fork bomb).
