@@ -603,4 +603,16 @@ hybrid_conductor/
 
 ## 📜 License
 Distributed under the **MIT License**.
-*Built for engineers who want tools, not toys.*
+
+---
+
+## 🔮 Future Integrations: OpenHands
+
+We are actively researching **OpenHands** as a sandboxed execution engine. Our "Dockerless" strategy involves using the OpenHands CLI with a process-based runtime to keep the footprint light.
+
+### Integration Plan (v9 Roadmap)
+1.  **Process Runtime**: Use `openhands serve --runtime=process` to run agents without Docker.
+2.  **Gemini CLI Bridge**: Connect Hybrid Conductor's orchestrator to OpenHands' API for complex multi-step refactoring tasks.
+3.  **Safety**: We will implement a custom `Sandbox` class that wraps OpenHands' process execution with our `LoopGuardian` logic.
+
+*Reference: [`docs/info_sources/openhands_dockerless.md`](docs/info_sources/openhands_dockerless.md)*

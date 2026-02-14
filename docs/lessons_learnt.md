@@ -67,4 +67,22 @@
 
 ### Semantic vs. Superficial Hashing
 - **Issue**: Changing a code comment or adding a blank line caused the SHA-256 hash to change, allowing infinite logic loops to bypass detection.
-- **Fix**: Enhanced `normalize_output()` to strip *all* Python/Shell comments (`#...`) and normalize whitespace/newlines. The system now hashes the *functional logic* only, making it impossible for an LLM to "game" the loop detector with cosmetic changes.
+
+## 6. Windows Process Spawning & Path Safety
+
+### Argument Parsing Hazards
+- **Issue**: Spawning subprocesses on Windows with paths containing spaces (e.g., `C:\Users\Name\Ai Tools`) often fails with `EINVAL` or "path not found".
+- **Why**: Windows `cmd.exe` has complex quoting rules. `child_process.spawn` (in Node/Electron) or `subprocess.Popen` (in Python) can misinterpret spaces as argument delimiters.
+- **Fix**: 
+    - **Quote Paths**: Always wrap paths in double quotes when constructing command strings (e.g., `cmd = f'"{path}"'`).
+    - **Shell=True**: For `.cmd` or `.bat` files, use `shell=True`. 
+    - **Single Quotes**: In TOML or shell scripts, use single quotes (`'C:\Path'`) to prevent variable expansion issues with Windows backslashes.
+
+### Hidden Environment Variables
+- **Issue**: Child processes (like the Python bridge) failing specifically because they missed API keys or configuration.
+- **Why**: `os.environ` isn't always fully propagated by default in some spawn configurations (especially when crossing from Node.js to Python).
+- **Fix**: Explicitly pass the `env` dictionary to the subprocess call, merging `os.environ` with any required project-specific variables (`PYTHONPATH`, `GEMINI_API_KEY`).
+
+### "Start-Up Loop" with Recursive Process Spawning
+- **Issue**: A parent process spawning a child that re-spawns the parent (infinite fork bomb).
+- **Fix**: Implemented the `HC_BACKGROUND_CHILD` environment variable sentinal. The `orchestrator.py` checks for this variable at startup; if present, it behaves as a worker/child rather than spawning a new background task.
