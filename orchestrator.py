@@ -94,6 +94,33 @@ class Orchestrator:
         self.tmp_dir = Path(tempfile.gettempdir()) / f"hybrid_orchestrator_{date_stamp}"
         self.tmp_dir.mkdir(parents=True, exist_ok=True)
         print(f" Tasks will be stored in: {self.tmp_dir}")
+        
+        # Pre-flight checks
+        self._check_dependencies()
+
+    def _check_dependencies(self) -> None:
+        """Verify required external tools like 'uv' are installed."""
+        import shutil
+        import subprocess
+        
+        required = ["uv", "git"]
+        missing = []
+        
+        for tool in required:
+            if not shutil.which(tool):
+                missing.append(tool)
+        
+        if missing:
+            error_msg = f"MISSING DEPENDENCIES: {', '.join(missing)}"
+            print(f"\n ERROR: {error_msg}")
+            print(" Please install required tools and ensure they are in your PATH.")
+            if "uv" in missing:
+                print(" Install uv: powershell -c \"irm https://astral.sh/uv/install.ps1 | iex\"")
+            
+            if not self.debug:
+                sys.exit(1)
+            else:
+                print(" WARNING: Continuing anyway due to --debug mode.")
     
     def _load_config(self, preset_name: Optional[str] = None) -> dict:
         """

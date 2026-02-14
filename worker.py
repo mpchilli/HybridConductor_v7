@@ -335,15 +335,18 @@ def _launch_mcp_git_server() -> subprocess.Popen:
     - Binds to localhost only for security
     """
     try:
-        return subprocess.Popen(
+        process = subprocess.Popen(
             ["uvx", "mcp-server-git", "--port", "8080", "--host", "127.0.0.1"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             shell=False,
             creationflags=subprocess.CREATE_NO_WINDOW
         )
-    except FileNotFoundError:
-        print(" mcp-server-git not found. MCP operations will use subprocess fallback.")
+        # Give it a moment to bind to the port
+        time.sleep(2)
+        return process
+    except Exception as e:
+        print(f" Warning: Could not launch mcp-server-git ({e}). MCP operations will use subprocess fallback.")
         # Return dummy process that sleeps
         return subprocess.Popen(
             ["python", "-c", "import time; time.sleep(3600)"],
